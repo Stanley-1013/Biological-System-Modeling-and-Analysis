@@ -31,13 +31,13 @@ $$\frac{dR}{dt} = I(R) - E(R)$$
 
 ---
 
-### (a) 線性迴歸
+### (a) 線性迴歸（Linear Regression）
 
 假設移入率與滅絕率均為物種數 R 的線性函數：
 
 $$I(R) = a_I + b_I \cdot R, \quad E(R) = a_E + b_E \cdot R$$
 
-**最小平方法估計原理**：對於樣本 $(R_i, y_i)$，最小化殘差平方和
+**最小平方法（Least Squares）估計原理**：對於樣本 $(R_i, y_i)$，最小化殘差平方和（RSS, Residual Sum of Squares）
 
 $$\text{RSS} = \sum_{i=1}^{n}(y_i - a - b \cdot R_i)^2$$
 
@@ -63,7 +63,7 @@ $$\boxed{E(R) = -0.2744 + 0.008040 \cdot R}$$
 
 ---
 
-### (b) 差分方程式（Eq. 1.2 形式）
+### (b) 差分方程式（Finite Difference Equation，Eq. 1.2 形式）
 
 依照教科書 Eq. 1.1 的離散差分格式：
 
@@ -97,7 +97,7 @@ $$\boxed{R^* \approx 334 \text{ 個物種}}$$
 
 ### (d) 大陸物種庫 P
 
-大陸物種庫 P 的物理意義為：島嶼上的物種已達到大陸物種庫的全部，此時無任何新物種可移入，移入率降為零：
+大陸物種庫（mainland species pool）P 的物理意義為：島嶼上的物種已達到大陸物種庫的全部，此時無任何新物種可移入，移入率降為零：
 
 $$I(P) = 0 \Rightarrow a_I + b_I \cdot P = 0 \Rightarrow P = -\frac{a_I}{b_I}$$
 
@@ -177,7 +177,7 @@ $$\frac{dR}{dt} = 0 \Rightarrow I(R^*) - E(R^*) = 0 \Rightarrow I(R^*) = E(R^*)$
 
 $$\lambda \cdot e^{-\alpha R^*} = \beta \cdot (R^*)^2$$
 
-此超越方程式無解析閉合解，需以數值方法求解。掃描法（scanning + 二分法細化）在 $R \in [1, 800]$ 範圍搜尋函數
+此超越方程式無解析閉合解，需以數值方法求解。掃描法（scanning）加二分法細化（bisection）在 $R \in [1, 800]$ 範圍搜尋函數
 
 $$f(R) = \lambda e^{-\alpha R} - \beta R^2$$
 
@@ -237,7 +237,7 @@ $$E(R, A) = \frac{\beta}{A^{0.5}} \cdot R^2$$
 
 **生物學意涵**：
 
-模擬結果與廣泛觀測到的物種-面積冪次律一致：島嶼愈大，平衡物種數愈高。從保育角度來說，這也是 SLOSS 爭論的理論依據——把兩個小保護區合併成一個大的，理論上能支撐更多物種。反過來，棲地破碎化讓有效面積縮小，新的 $R^*$ 比現有物種數低，之後物種數會慢慢往下走，這就是「滅絕債」（extinction debt）。
+模擬結果與廣泛觀測到的物種-面積冪次律（species-area power law）一致：島嶼愈大，平衡物種數愈高。從保育角度來說，這也是 SLOSS 爭論的理論依據——把兩個小保護區合併成一個大的，理論上能支撐更多物種。反過來，棲地破碎化讓有效面積縮小，新的 $R^*$ 比現有物種數低，之後物種數會慢慢往下走，這就是「滅絕債」（extinction debt）。
 
 ---
 

@@ -93,7 +93,7 @@ MacArthur-Wilson 理論不只是學術玩具，它對自然保育有深遠影響
 
 ---
 
-## 第二章：線性迴歸基礎
+## 第二章：線性迴歸基礎（Linear Regression）
 
 ### 2.1 什麼是迴歸？
 
@@ -120,7 +120,7 @@ $$e_i = y_i - \hat{y}_i = y_i - (a + bx_i)$$
 
 $$\text{RSS} = \sum_{i=1}^{n} e_i^2 = \sum_{i=1}^{n} (y_i - a - bx_i)^2$$
 
-**最小平方法**的目標：找到使 RSS 最小的 $a$ 和 $b$。
+**最小平方法（Ordinary Least Squares, OLS）**的目標：找到使 RSS 最小的 $a$ 和 $b$。
 
 ### 2.3 從零推導正規方程式
 
@@ -142,7 +142,7 @@ $$\boxed{b = \frac{n\sum x_i y_i - \sum x_i \sum y_i}{n\sum x_i^2 - \left(\sum x
 
 這兩條公式叫做**正規方程式**（Normal Equations）。
 
-### 2.4 決定係數 $R^2$ 的直覺
+### 2.4 決定係數（Coefficient of Determination）$R^2$ 的直覺
 
 $R^2$ 衡量「這條直線解釋了多少資料的變異」：
 
@@ -311,7 +311,7 @@ $\tau$ 代表系統回到平衡的快慢——大約在 $3\tau \approx 155$ 年�
 
 ### 3.6 大陸物種庫 P
 
-$P$ 的定義：當島嶼上的物種數達到 $P$ 時，移入率降為零（島上已包含大陸所有物種，沒有新物種可以移入）：
+$P$（mainland pool）的定義：當島嶼上的物種數達到 $P$ 時，移入率降為零（島上已包含大陸所有物種，沒有新物種可以移入）：
 
 $$I(P) = 0 \implies a_I + b_I P = 0 \implies P = -\frac{a_I}{b_I}$$
 
@@ -325,7 +325,7 @@ $$P = -\frac{6.1930}{-0.011315} \approx 547 \text{ 個物種}$$
 
 ---
 
-## 第四章：有限差分法（數值模擬）
+## 第四章：有限差分法（Finite Difference Method，數值模擬）
 
 ### 4.1 為什麼需要數值方法？
 
@@ -761,7 +761,7 @@ if len(sign_changes) > 0:
 
 ## 第七章：島嶼面積效應
 
-### 7.1 物種-面積關係
+### 7.1 物種-面積關係（Species-Area Relationship）
 
 早在 MacArthur-Wilson 之前，生態學家就觀察到一個普遍規律：**島嶼越大，物種越多**。Preston（1962）提出了著名的冪次律：
 
