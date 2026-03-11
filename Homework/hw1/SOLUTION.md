@@ -181,7 +181,7 @@ $$\frac{dR}{dt} = 0 \Rightarrow I(R^*) - E(R^*) = 0 \Rightarrow I(R^*) = E(R^*)$
 
 $$\lambda \cdot e^{-\alpha R^*} = \beta \cdot (R^*)^2$$
 
-此超越方程式無解析閉合解，需以數值方法求解。掃描法（scanning）加二分法細化（bisection）在 $R \in [1, 800]$ 範圍搜尋函數
+此超越方程式無解析閉合解（closed-form solution），需以數值方法（numerical method）求解。掃描法（scanning）加二分法細化（bisection）在 $R \in [1, 800]$ 範圍搜尋函數
 
 $$f(R) = \lambda e^{-\alpha R} - \beta R^2$$
 
@@ -239,7 +239,7 @@ $$E(R, A) = \frac{\beta}{A^{0.5}} \cdot R^2$$
 
 - $I \propto A^{0.3}$：較大島嶼提供更多樣的棲地類型（如森林、草原、濕地），提高了新物種定殖的成功率。指數 0.3 符合 Preston（1962）提出的物種-面積關係 $S \propto A^z$（$z \approx 0.25$-$0.35$）的實證觀察。
 
-- $E \propto A^{-0.5}$：較大島嶼上每個物種的平均可用資源量更多，種群規模更大，因此隨機性滅絕（demographic stochasticity）和競爭排除的機率均較低。$A^{-0.5}$ 表示滅絕率與島嶼面積的平方根成反比。
+- $E \propto A^{-0.5}$：較大島嶼上每個物種的平均可用資源量更多，種群規模更大，因此隨機性滅絕（demographic stochasticity）和競爭排除（competitive exclusion）的機率均較低。$A^{-0.5}$ 表示滅絕率與島嶼面積的平方根成反比。
 
 **數值模擬結果**（以 $A=1$ 為基準）：
 
