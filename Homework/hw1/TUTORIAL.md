@@ -136,7 +136,17 @@ $$\sum y_i - na - b\sum x_i = 0 \implies a = \bar{y} - b\bar{x}$$
 
 其中 $\bar{x} = \frac{1}{n}\sum x_i$，$\bar{y} = \frac{1}{n}\sum y_i$ 是平均值。
 
-將 $a = \bar{y} - b\bar{x}$ 代入第二條方程式（展開後化簡），可得：
+將 $a = \bar{y} - b\bar{x}$ 代入第二條方程式 $\sum x_i(y_i - a - bx_i) = 0$，展開：
+
+$$\sum x_i\bigl(y_i - (\bar{y} - b\bar{x}) - bx_i\bigr) = 0$$
+
+$$\sum x_i(y_i - \bar{y}) - b\underbrace{\sum x_i(x_i - \bar{x})}_{\text{移項}} = 0$$
+
+整理得：
+
+$$b = \frac{\sum x_i(y_i - \bar{y})}{\sum x_i(x_i - \bar{x})}$$
+
+分子分母同乘以 $n$，利用 $\sum x_i(y_i-\bar{y}) = \sum x_iy_i - n\bar{x}\bar{y}$ 化簡，可得：
 
 $$\boxed{b = \frac{n\sum x_i y_i - \sum x_i \sum y_i}{n\sum x_i^2 - \left(\sum x_i\right)^2}, \quad a = \bar{y} - b\bar{x}}$$
 
@@ -297,7 +307,19 @@ $$\frac{du}{dt} = \frac{dR}{dt} = A - B(u + R^*) = A - Bu - BR^* = -Bu$$
 
 （因為 $A = BR^*$）
 
-解這個簡單的 ODE：$u(t) = u_0 e^{-Bt}$，即：
+對 $\dfrac{du}{dt} = -Bu$ 分離變數（separation of variables）：
+
+$$\frac{du}{u} = -B\,dt$$
+
+兩邊積分：
+
+$$\int \frac{du}{u} = \int -B\,dt \implies \ln|u| = -Bt + C$$
+
+取指數，令積分常數 $u_0 = u(0) = R_0 - R^*$，得：
+
+$$u(t) = u_0\,e^{-Bt}$$
+
+代回 $u = R - R^*$，即：
 
 $$\boxed{R(t) = R^* + (R_0 - R^*) e^{-Bt}}$$
 

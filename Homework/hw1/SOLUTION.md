@@ -73,6 +73,10 @@ $$R_{t+1} = R_t + I_t - E_t$$
 
 $$\boxed{R_{t+1} = R_t + (6.1930 - 0.011315\, R_t) - (-0.2744 + 0.008040\, R_t)}$$
 
+展開括號並合併常數項與 $R_t$ 項：
+
+$$R_{t+1} = R_t + \underbrace{(6.1930 + 0.2744)}_{\text{常數項}} + \underbrace{(-0.011315 - 0.008040)}_{\text{}R_t\text{ 係數}}\, R_t$$
+
 化簡後可寫為：
 
 $$R_{t+1} = R_t + 6.4675 - 0.019355\, R_t$$
@@ -197,7 +201,17 @@ $$\boxed{R^* \approx 217 \text{ 個物種}}$$
 - 當 $R < R^*$：$I > E$，$f > 0$，$dR/dt > 0$，物種數增加趨向 $R^*$
 - 當 $R > R^*$：$E > I$，$f < 0$，$dR/dt < 0$，物種數減少趨向 $R^*$
 
-由於 $f'(R^*) = I'(R^*) - E'(R^*) = (-\alpha\lambda e^{-\alpha R^*}) - (2\beta R^*) < 0$，確認 $R^*$ 為**穩定平衡點**（stable fixed point）。
+設 $f(R) = I(R) - E(R)$，分別對 $R$ 求導：
+
+$$I'(R) = \frac{d}{dR}\!\left[\lambda e^{-\alpha R}\right] = -\alpha\lambda e^{-\alpha R}$$
+
+$$E'(R) = \frac{d}{dR}\!\left[\beta R^2\right] = 2\beta R$$
+
+在 $R = R^*$ 處代入：
+
+$$f'(R^*) = I'(R^*) - E'(R^*) = -\alpha\lambda e^{-\alpha R^*} - 2\beta R^*$$
+
+由於 $\alpha, \lambda, \beta, R^* > 0$，兩項均為負值，故 $f'(R^*) < 0$，確認 $R^*$ 為**穩定平衡點**（stable fixed point）。
 
 ---
 
