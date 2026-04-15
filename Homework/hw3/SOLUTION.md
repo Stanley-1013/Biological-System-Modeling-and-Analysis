@@ -4,221 +4,220 @@
 **作業**：HW3（2025 春季學期，Due 2026-04-16）
 
 > 模擬程式：`hw3_solution.py`，輸出圖檔於 `hw3_figures/`
+>
+> 本次解答根據課本四張對應截圖補正（Fig 5.4、Fig 5.8、Eq. 4.23/4.24、Eq. 6.4）。
 
 ---
 
-## 第一題 (25%): 啤酒發酵方程式（溫度最適 Curve A）
+## 第一題 (25%): 啤酒發酵 — Fig 5.8 原方程 × Fig 5.4 curve A 溫度函數
 
-### 模型建構
+### 基礎方程 (Fig 5.8)
 
-狀態變數（每公升麥汁 / per litre of wort）：
+圖中給出的 yeast/beer fermentation 三條 ODE（以每公升麥汁 g/L 計）：
 
-| 符號 | 物理量 | 單位 |
-|:--:|----|:--:|
-| $S$ | 糖 (sugar) | g/L |
-| $Y$ | 酵母生物量 (yeast biomass) | g/L |
-| $E$ | 乙醇 (ethanol) | g/L |
-| $C$ | 二氧化碳 (CO₂) 釋出量 | g/L |
+$$\frac{dS}{dt} = -abSY - afSY,\qquad
+\frac{dY}{dt} = acSY - dYA,\qquad
+\frac{dA}{dt} = abSY$$
 
-**化學計量 (stoichiometry)** — 題目給定：
+變數：$S$ = 糖，$Y$ = 酵母，$A$ = 乙醇。係數意義（Spain 原書）：
+$a$ 為糖吸收速率常數；$b$ 為轉為酒精的比例；$f$ 為另一去路（CO₂ 散失）；$c$ 為酵母的產率係數；$d$ 為乙醇毒性造成的死亡率。
 
-$$2.0665\ \text{g sugar} \longrightarrow 1\ \text{g EtOH} + 0.9565\ \text{g CO}_2 + 0.11\ \text{g yeast}$$
+### Problem 1 的修改 — 把 yeast 生長項乘上 Temperature Optimum
 
-質量守恆檢核：$1 + 0.9565 + 0.11 = 2.0665$ ✓。由此定義 yield coefficients（產率係數）：
+題目要求**酵母生長使用 Fig 5.4 curve A**，故將 $dY/dt$ 中的生長項乘上 $f_T(T)$：
 
-$$Y_{E/S} = \frac{1}{2.0665} \approx 0.4839,\quad
-Y_{C/S} = \frac{0.9565}{2.0665} \approx 0.4629,\quad
-Y_{Y/S} = \frac{0.11}{2.0665} \approx 0.0532$$
+$$\boxed{\frac{dY}{dt} = f_T(T)\,a c S Y - d Y A}$$
 
-**動力學 (kinetics)** — Monod substrate uptake × 溫度最適函數：
+$dS/dt$ 與 $dA/dt$ 維持 Fig 5.8 原式不變。
 
-$$\mu(T, S) = \mu_{\max}\,f_T(T)\,\frac{S}{K_s + S}$$
+### Temperature Optimum（Fig 5.4 panel K 曲線 A）
 
-Fig 5.4 **curve A** 以高斯 (Gaussian) 形式實作：
+Fig 5.4 panel K **curve A 參數**（截圖表格）：
 
-$$f_T(T) = \exp\!\left(-\frac{(T - T_{\text{opt}})^2}{2\sigma_T^2}\right)$$
+$$k_1 = 1.25,\quad k_2 = 1.5,\quad k_3 = 29.3,\quad k_4 = 40$$
 
-**溫度擾動 (diurnal forcing)**：平均 20°C、振幅 8°C、週期 1 天、峰值在中午 12:00：
+採 Spain 常用的非對稱溫度最適式（Logan-type）：
 
-$$T(t) = 20 + 8\cos\!\left(\frac{2\pi (t - 12)}{24}\right)\quad [t\ \text{in hours}]$$
+$$f_T(T) \;=\; k_1 \left(\frac{k_4 - T}{k_4 - k_3}\right)^{\!k_2}\exp\!\left(k_2\,\frac{T - k_3}{k_4 - k_3}\right),\quad T < k_4$$
 
-驗證：$t=12$ 時 $T=28°\text{C}$（中午最高）；$t=0,24$ 時 $T=12°\text{C}$（午夜最低）。✓
+性質驗證：
+- $f_T(k_3) = k_1 \cdot 1 \cdot e^0 = k_1 = 1.25$（曲線峰值與截圖一致）
+- $f_T(k_4) = 0$（上限致死）
+- $T > k_4$ 時 $f_T \equiv 0$
+- 於操作範圍（12–28°C）內 $f_T$ 由 0.69 升到 0.99，涵蓋合理活性區
 
-**ODE 系統**（改寫自 Fig 5.8 的啤酒方程式）：
+### 溫度擾動
 
-$$\boxed{
-\begin{aligned}
-\frac{dY}{dt} &= \mu(T,S)\,Y - k_d\,Y \\
-\frac{dS}{dt} &= -\frac{1}{Y_{Y/S}}\,\mu(T,S)\,Y \\
-\frac{dE}{dt} &= \frac{Y_{E/S}}{Y_{Y/S}}\,\mu(T,S)\,Y \\
-\frac{dC}{dt} &= \frac{Y_{C/S}}{Y_{Y/S}}\,\mu(T,S)\,Y
-\end{aligned}}$$
+題目：平均 20°C、振幅 8°C、週期 1 天、峰值在中午 12:00。
 
-### 參數選擇（compatible with real conditions）
+$$T(t) \;=\; 20 + 8\cos\!\left(\frac{2\pi(t - 12)}{24}\right)\quad [t\ \text{in hours}]$$
+
+驗證：$t=12 \Rightarrow T=28°\mathrm{C}$（中午最高），$t=0,24 \Rightarrow T=12°\mathrm{C}$（午夜最低）。
+
+### 參數選擇（與真實釀酒條件相容）
 
 | 參數 | 值 | 說明 |
-|:--:|:--:|----|
-| $\mu_{\max}$ | 0.12 /hr | 最適條件下比增長率（典型 *S. cerevisiae*） |
-| $K_s$ | 5 g/L | Monod 半飽和常數（酵母對糖親和力高） |
-| $k_d$ | 0 | 酵母死亡率（設為 0 以確保化學計量嚴格閉合；可視需要提升至 0.001–0.005 /hr 加入衰減） |
-| $T_{\text{opt}}$ | 25 °C | curve A 溫度最適 |
-| $\sigma_T$ | 5 °C | 最適曲線寬度 |
-| $S_0$ | 120 g/L | 初始麥汁糖度（約 12°P 比重） |
-| $Y_0$ | 0.5 g/L | 投酵 (pitching) 濃度 |
+|:--:|:--:|---|
+| $a$ | 0.0050 L·g⁻¹·hr⁻¹ | 糖吸收速率常數（調至一週內消耗主要糖分） |
+| $b$ | 0.484 | 糖→乙醇比例 $= 1/2.0665$ |
+| $f$ | 0.466 | 糖→CO₂ 比例 $= 0.9565/2.0665$ |
+| $c$ | 0.055 | 酵母產率 $\approx 0.11/2.0665$ |
+| $d$ | $2\times 10^{-4}$ L·g⁻¹·hr⁻¹ | 乙醇毒性死亡 |
+| $S_0$ | 120 g/L | 初始麥汁糖度（~12°P） |
+| $Y_0$ | 0.5 g/L | 投酵濃度 |
 
-選擇理由：使一週 (168 hr) 內完成主要糖分消耗，對應題目所述「primary fermentation takes about a week」。
+化學計量比 $(b : f : c) = (0.484 : 0.466 : 0.055)$ 嚴格對應題目 $(1 : 0.9565 : 0.11)/2.0665$（誤差僅來自 $c$ 對應 0.0532 的第 3 位小數四捨五入）。
 
-### 參考連結內容摘要（The Kitchn — Emma Christensen）
-
-題目提供的連結 `thekitchn.com/how-beer-is-brewed-a-timeline` 中，完整釀造時程如下：
-
-| 階段 | 時長 | 重點 |
-|---|:--:|---|
-| **Brew Day** | 4 – 4½ 小時 | Mash（糖化）→ Sparging（洗糖）→ Hop Boil（煮花）→ Pitching Yeast（投酵） |
-| **Primary Fermentation** | **1 週** | 酵母活性最高；「大啖糖分宴席」，產生大量酒精與 CO₂ |
-| Secondary Fermentation | 2 週 | 酵母緩慢清理殘糖，沉澱物下沉，酒液轉清 |
-| Bottle Conditioning | 2 週 – 1 年 | 瓶中二次發酵產生碳酸氣 |
-| **總時長** | ≥ 5 週 | 從釀造日到開瓶飲用 |
-
-核心公式：**sugary wort + yeast + time = beer**。酵母吃掉麥汁中的糖，釋出乙醇 (alcohol) 與二氧化碳 (CO₂)。
-
-本作業**僅模擬 Primary Fermentation**（168 hr），因為這是酵母生長 + 糖分消耗 + 酒精與 CO₂ 生成最劇烈的階段，也是 Fig 5.8 啤酒方程式所描述的對象。後續 Secondary + Bottle stages 主要為靜置澄清，不屬本模型範疇。
-
-### 模擬結果
-
-RK-4 with $\Delta t = 0.1\ \text{hr}$，積分 168 hr：
+### 模擬結果（RK-4，$\Delta t = 0.1\ \mathrm{hr}$，積分 168 hr）
 
 ```
-Sugar consumed   : 120.00 g/L  (100.0% of initial)
-Ethanol produced :  58.07 g/L  (stoich: 58.07)  ← ABW ≈ 5.8%, ABV ≈ 7.3%
-CO2     released :  55.54 g/L  (stoich: 55.54)
-Yeast   final    :   6.89 g/L  (stoich: 6.89)
-Mass-balance residual (ethanol): 1.4e-14       ← 化學計量嚴格成立（浮點精度內）
+Sugar consumed   : 102.11 g/L   (85.1% of initial)     ← 「primary fermentation」
+Ethanol produced :  52.02 g/L   (stoich b/(b+f)·ΔS = 52.02)
+CO2  (implicit)  :  50.09 g/L   (via f-branch)
+Yeast   final    :   2.90 g/L
+ABV ≈ 6.6 %      (ethanol density 0.79 g/mL)
 ```
 
-四項狀態變數都與化學計量預測完全一致（殘差僅為浮點誤差量級），驗證模型建構無誤。
+對應工業發酵「一週消耗主要糖分（attenuation ≈ 85%）、留下殘糖進二次發酵」的典型行為；ABV 6–7% 符合 strong ale / IPA 區間。乙醇數值與化學計量預測 $b/(b+f)\cdot\Delta S$ 吻合到 0.01 g/L 以內，證實 Fig 5.8 的質量流守恆嚴格成立。
 
-見 `hw3_figures/fig1_beer_fermentation.png`（四個狀態變數時序）與 `fig1b_temperature_curve.png`（溫度擾動 + $f_T$ 曲線）。
+見 `hw3_figures/fig1_beer_fermentation.png`（S, Y, A, T 時序）與 `fig1b_temperature_curve.png`（curve A 的 $f_T$ 形狀 + 日週期 $T(t)$ 對 $f_T$ 的調制）。
 
-### 模型參數敏感度討論
+### 參數敏感度（program scan）
 
-固定其他參數，改變 $T_{\text{opt}}$，觀察 72 hr（發酵中期）糖消耗率：
-
-| $T_{\text{opt}}$ | 72 hr 糖消耗 | 物理解釋 |
-|:--:|:--:|----|
-| 15 °C | 100% | 午夜（T=12°C）接近最適，活性穩定 |
-| 20 °C | 100% | 介於兩極之間，全日高活性 |
-| 25 °C | 100% | 介於日均與峰值之間，效率最高 |
-| 30 °C | 94.8% | 僅在午夜和中午之間短暫接近 |
-| 35 °C |  9.1% | 操作範圍遠離最適，酵母幾乎休眠 |
+| 掃描參數 | 觀察 |
+|---|---|
+| $k_3$ (T_opt) | $k_3 = 20\!\sim\!25\,°\mathrm{C}$ 發酵最完全（$A_f \approx 57\,\mathrm{g/L}$）；$k_3 = 37\,°\mathrm{C}$ 則 $A_f$ 僅 $19\,\mathrm{g/L}$ — 最適溫度落在 $T(t)$ 範圍外即顯著降速 |
+| $a$ (糖吸收) | $a$ 從 0.002 到 0.008，$A_f$ 由 19 到 59 g/L — 線性主導整體速率 |
+| $d$ (乙醇毒性) | $d = 0$ 時 $Y_f = 6.1$、$A_f = 57$；$d = 10^{-3}$ 時 $Y_f = 0.39$、$A_f = 35$ — 酵母死亡率明顯限制發酵末期產酒量 |
 
 **關鍵觀察**：
 
-1. **溫度/最適匹配**：只要最適溫度落在日變化範圍 (12–28°C) 內，發酵可在 7 天完成；超出此範圍（如 35°C）會嚴重拖慢。
-2. **週期性加速**：每日中午酵母活性激增，產生圖上可見的「階梯狀」糖消耗曲線。
-3. **質量守恆嚴格滿足**（殘差 $\sim 10^{-14}$）— 這是化學計量直接耦合的必然結果。
-4. **$\mu_{\max}$ 與 $K_s$ 主導總體速率**：若 $\mu_{\max}$ 減半，發酵無法在一週內完成；$K_s$ 放大則末期低糖時活性下降。
+1. **溫度/最適匹配**：$k_3$ 若偏離日變化範圍（12–28°C）過遠，發酵嚴重延遲。
+2. **日週期調制**：$f_T(T(t))$ 每日中午（$T$ 接近 $k_3$）活性升至 $\sim 1$，午夜（$T=12$）壓低至 $\sim 0.7$，$Y$ 與 $A$ 因此出現階梯狀成長曲線。
+3. **乙醇毒性回饋**：$d Y A$ 項使 $Y$ 在 $\sim 100$ hr 後達高峰而轉降，後期糖消耗速率漸緩。
+4. **Fig 5.8 的 $c$ 項不從 $S$ 扣除**：此為 Spain 原式的簡化；本實作忠於原式未補扣，故嚴格質量守恆只對 EtOH/CO₂ 部分成立。
 
 ---
 
-## 第二題 (25%): Lotka-Volterra 無量綱化
+## 第二題 (25%): Lotka-Volterra 無量綱化（Eq. 4.23 / 4.24）
 
-### 原系統 (Eq. 4.23)
+### 原系統
 
-$$\frac{dV}{dt} = rV - aVP,\qquad \frac{dP}{dt} = abVP - dP$$
+$$\frac{dV}{dt} = \underbrace{rV}_{\text{positive feedback}} - \underbrace{aVP}_{\text{mass action}} \quad (4.23),\qquad
+\frac{dP}{dt} = \underbrace{abVP}_{\text{conversion}} - \underbrace{dP}_{\text{death}} \quad (4.24)$$
 
-原系統含 4 個參數 $(r, a, b, d)$。無量綱化的目標是**縮減參數數量**，找出控制動態的真正獨立群組。
+原系統含 4 個獨立參數 $(r, a, b, d)$。無量綱化目標：縮減至真正獨立的無量綱群組。
 
-### 縮放選擇 (scaling choice)
+### 縮放選擇
 
-時間以獵物自然成長率為尺度：$\tau = r\,t$
-
-狀態變數以固定點為尺度。由 $dV/dt = dP/dt = 0$ 得固定點
+- 時間以獵物成長率為尺度：$\tau = rt$
+- 狀態以固定點為尺度。由 $dV/dt = dP/dt = 0$ 得
 
 $$V^* = \frac{d}{ab},\qquad P^* = \frac{r}{a}$$
 
-令：
+令 $x = V/V^* = (ab/d)V$，$y = P/P^* = (a/r)P$。
 
-$$x = \frac{V}{V^*} = \frac{ab}{d}V,\qquad y = \frac{P}{P^*} = \frac{a}{r}P$$
+### 推導
 
-### 代入推導
+**獵物方程**：$\dfrac{dV}{dt} = \dfrac{d}{ab}\cdot r\dfrac{dx}{d\tau} = \dfrac{dr}{ab}\dfrac{dx}{d\tau}$
 
-**獵物方程式**：
-$$\frac{dV}{dt} = rV - aVP$$
-左側：$\dfrac{dV}{dt} = \dfrac{d}{ab}\dfrac{dx}{dt} = \dfrac{d}{ab}\cdot r\dfrac{dx}{d\tau} = \dfrac{dr}{ab}\dfrac{dx}{d\tau}$
+右側：$rV - aVP = r\dfrac{d}{ab}x - a\cdot\dfrac{d}{ab}x\cdot\dfrac{r}{a}y = \dfrac{dr}{ab}(x - xy)$
 
-右側：$r\cdot\dfrac{d}{ab}x - a\cdot\dfrac{d}{ab}x\cdot\dfrac{r}{a}y = \dfrac{dr}{ab}x - \dfrac{dr}{ab}xy$
+$\Rightarrow \boxed{\dfrac{dx}{d\tau} = x(1 - y)}$
 
-兩側除以 $\dfrac{dr}{ab}$：
+**捕食者方程**：$\dfrac{dP}{dt} = \dfrac{r^2}{a}\dfrac{dy}{d\tau}$
 
-$$\boxed{\frac{dx}{d\tau} = x(1 - y)}$$
+右側：$abVP - dP = \dfrac{dr}{a}xy - \dfrac{dr}{a}y = \dfrac{dr}{a}y(x - 1)$
 
-**捕食者方程式**：
-$$\frac{dP}{dt} = abVP - dP$$
-左側：$\dfrac{dP}{dt} = \dfrac{r}{a}\cdot r\dfrac{dy}{d\tau} = \dfrac{r^2}{a}\dfrac{dy}{d\tau}$
-
-右側：$ab\cdot\dfrac{d}{ab}x\cdot\dfrac{r}{a}y - d\cdot\dfrac{r}{a}y = \dfrac{dr}{a}xy - \dfrac{dr}{a}y$
-
-兩側除以 $\dfrac{r^2}{a}$：
-
-$$\boxed{\frac{dy}{d\tau} = \alpha\,y(x - 1),\qquad \alpha = \frac{d}{r}}$$
+$\Rightarrow \boxed{\dfrac{dy}{d\tau} = \alpha\,y(x - 1),\quad \alpha = \dfrac{d}{r}}$
 
 ### 結論
 
 $$\left\{\begin{aligned}
-\dfrac{dx}{d\tau} &= x(1 - y)\\[4pt]
+\dfrac{dx}{d\tau} &= x(1 - y) \\[3pt]
 \dfrac{dy}{d\tau} &= \alpha\,y(x - 1)
-\end{aligned}\right.\qquad \alpha = \frac{d}{r}$$
+\end{aligned}\right.\qquad \alpha = \dfrac{d}{r}$$
 
-從 4 個獨立參數 $(r, a, b, d)$ **縮減成 1 個無量綱群組** $\alpha = d/r$。固定點移至 $(1,1)$。物理意義：
+**4 個獨立參數 $(r, a, b, d)$ 縮減為 1 個無量綱群組 $\alpha = d/r$**；固定點移至 $(1, 1)$。
 
-- $\alpha$ = 捕食者死亡率 / 獵物內在增長率
-- $\alpha$ 大 → 捕食者快速反應，振盪頻率高
-- $\alpha$ 小 → 捕食者遲緩，振盪頻率低
-- 振盪週期 $T \propto 1/\sqrt{\alpha}$（線性化分析）
+物理意義：$\alpha$ 大 → 捕食者反應快，振盪頻率高；$\alpha$ 小 → 反應慢，週期長（線性化週期 $T \propto 1/\sqrt{\alpha}$）。
 
-見 `hw3_figures/fig2_lv_nondim.png`：多個 $\alpha$ 的相圖（phase portrait）與時序。
+見 `hw3_figures/fig2_lv_nondim.png`：三種 $\alpha$ 的相圖與時序。
 
 ---
 
-## 第三題 (25%): RK-4 時間步長對 Eq. 6.4 的影響
+## 第三題 (25%): RK-4 時間步長對剛性系統 Eq. 6.4 的影響
 
-### 選用方程式
+### 方程（Eq. 6.4，截圖）
 
-> **假設說明**：題目僅標示「Eq. 6.4」未附式子。本解答假設 Eq. 6.4 為第 6 章（數值方法）所用的 **Lotka-Volterra 示範系統**（dimensional form），以觀察振盪型 ODE 的數值收斂行為。若教科書 Eq. 6.4 實為其他 ODE，只需替換 `eq64_rhs` 函數即可；RK-4 收斂階次的結論（$O(\Delta t^4)$）不變。
+$$\boxed{\frac{du}{dt} = 998u + 1998v,\qquad \frac{dv}{dt} = -999u - 1999v}$$
 
-$$\frac{dV}{dt} = rV - aVP,\qquad \frac{dP}{dt} = abVP - dP$$
+### 特徵值 — 此為經典剛性問題
 
-參數 $(r, a, b, d) = (1.0, 0.1, 0.5, 0.5)$，初值 $V(0)=10$、$P(0)=5$，積分區間 $t\in[0, 50]$。此設定會產生約 4 個振盪週期，正好可以觀察數值方法是否累積相位誤差。
+$\mathbf{A} = \begin{pmatrix} 998 & 1998 \\ -999 & -1999 \end{pmatrix}$；
+trace $= -1001$，det $= 998\cdot(-1999) - 1998\cdot(-999) = 1000$。
 
-### RK-4 單步
+特徵多項式 $\lambda^2 + 1001\lambda + 1000 = (\lambda + 1)(\lambda + 1000) = 0$
 
-$$\begin{aligned}
-k_1 &= f(t_n, y_n)\\
-k_2 &= f(t_n + \tfrac{\Delta t}{2}, y_n + \tfrac{\Delta t}{2}k_1)\\
-k_3 &= f(t_n + \tfrac{\Delta t}{2}, y_n + \tfrac{\Delta t}{2}k_2)\\
-k_4 &= f(t_n + \Delta t, y_n + \Delta t\,k_3)\\
-y_{n+1} &= y_n + \tfrac{\Delta t}{6}(k_1 + 2k_2 + 2k_3 + k_4)
-\end{aligned}$$
+$$\Rightarrow\ \boxed{\lambda_1 = -1,\quad \lambda_2 = -1000 \quad (\text{剛性比 1000})}$$
 
-局部截斷誤差 $O(\Delta t^5)$，全域誤差 $O(\Delta t^4)$。
+### 解析解
 
-### 結果
+**初始條件假設**（題目未指定 $u(0), v(0)$）：採 $u(0)=1,\ v(0)=0$，使**兩個模態都被激發** — 這是剛性測試的保守選擇。若 IC 剛好對齊慢特徵向量（例如 $(u,v)=(2,-1)$），則 $C_2=0$、快模態不出現，任何 $\Delta t$ 都能穩定，完全看不出剛性問題。
 
-與極細參考解 ($\Delta t = 0.001$) 比較 $V(50)$：
+由特徵向量分解（$\lambda_1=-1$ 對應 $(2,-1)$，$\lambda_2=-1000$ 對應 $(1,-1)$）：
+$C_1 = u_0 + v_0 = 1,\ C_2 = -(u_0 + 2v_0) = -1$，故
 
-| $\Delta t$ | $V(50)$ | 絕對誤差 |
-|:--:|:--:|:--:|
-| 1.0 | 13.3101 | $1.44 \times 10^{-1}$ |
-| 0.5 | 13.4651 | $1.14 \times 10^{-2}$ |
-| 0.1 | 13.4538 | $4.93 \times 10^{-5}$ |
-| 0.01 | 13.45376 | $5.69 \times 10^{-9}$ |
+$$u(t) = 2e^{-t} - e^{-1000t},\qquad v(t) = -e^{-t} + e^{-1000t}$$
 
-**誤差縮減比率** — 由 $\Delta t=1.0$ 到 $\Delta t=0.1$（縮小 10 倍），誤差從 $1.4\times 10^{-1}$ 降至 $5\times 10^{-5}$，約縮 **3000 倍**，接近理論 $10^4$；由 $\Delta t=0.1$ 再到 $0.01$ 縮約 $9000$ 倍，符合 $O(\Delta t^4)$。
+快模態 $e^{-1000t}$ 在 $t \sim 5\times 10^{-3}$ 即衰減殆盡，之後只剩慢模態 $e^{-t}$。但 RK-4 是**顯式方法**，必須全程解析快模態。
 
-**收斂判定**：$\Delta t \leq 0.1$ 時 $V(50)$ 已正確至小數點後 4 位；$\Delta t = 0.01$ 幾乎為精確解。可以說 **$\Delta t \approx 0.1$ 為動態收斂所需的時間步長**。
+### RK-4 絕對穩定性條件
 
-見 `hw3_figures/fig3_rk4_timestep.png`。
+RK-4 放大因子 $R(z) = 1 + z + z^2/2 + z^3/6 + z^4/24$，其中 $z = \lambda\,\Delta t$。
+沿實數負軸，穩定邊界 $|R(z)| \leq 1$ 給出 $z \geq -2.7853$。
+
+因此對快模態 $\lambda_2 = -1000$：
+
+$$\Delta t \;\leq\; \frac{2.7853}{1000} \;\approx\; 2.79 \times 10^{-3}$$
+
+**題目給的四個步長 $\Delta t = (1.0, 0.5, 0.1, 0.01)$ 全部超過此界**，應全不穩定。
+
+### 實驗結果（從 $t=0$ 積到 $t=1.0$，比較 $u$ 在 $t=1.0$ 的值；積分器最後一步自動 clamp 至 $t_\text{end}$）
+
+| $\Delta t$ | n_steps | $u(1.0)$ | 絕對誤差 | 狀態 |
+|:--:|:--:|:--:|:--:|---|
+| 1.0 | 1 | $-4.15\times 10^{10}$ | $4.2\times 10^{10}$ | 不穩定 |
+| 0.5 | 2 | $-6.67\times 10^{18}$ | $6.7\times 10^{18}$ | 不穩定 |
+| 0.1 | 10 | BLOWUP ($>10^{20}$) | — | **失控** |
+| 0.01 | 100 | BLOWUP | — | 失控 |
+| $5\times 10^{-3}$ | 200 | BLOWUP | — | 失控 |
+| $3\times 10^{-3}$ | 334 | BLOWUP | — | 剛好超過邊界 |
+| $2.79\times 10^{-3}$ | 359 | $-3.36$ | $4.1$ | 邊界上，仍不準 |
+| $2.5\times 10^{-3}$ | 400 | 0.73576 | $2.5\times 10^{-13}$ | **收斂** |
+| $2\times 10^{-3}$ | 500 | 0.73576 | $1.1\times 10^{-13}$ | 收斂 |
+| $1\times 10^{-3}$ | 1000 | 0.73576 | $5.3\times 10^{-15}$ | 精確 |
+| $5\times 10^{-4}$ | 2000 | 0.73576 | $2.6\times 10^{-15}$ | 精確 |
+
+解析參考 $u(1.0) = 2e^{-1} - e^{-1000} \approx 0.7357588823$
+
+### 回答題目
+
+**「動態收斂所需的時間步長」**：
+
+- **穩定性門檻**：$\Delta t \lesssim 2.79 \times 10^{-3}$（理論）；實驗在 $\Delta t = 2.5\times 10^{-3}$ 首次收斂，$\Delta t = 3\times 10^{-3}$ 仍在邊界上振盪。
+- **精準度需求**：$\Delta t \approx 1\times 10^{-3}$ 已達浮點精度極限（相對誤差 $10^{-15}$）。
+
+**關鍵結論**：
+
+1. 題目所列四個 $\Delta t$ **無一穩定**：
+   - $\Delta t = 1.0, 0.5$ 只跑 1–2 步就放大出 $10^{10}\!\sim\!10^{18}$ 量級誤差；
+   - $\Delta t = 0.1, 0.01$ 分別跑 10、100 步，每步放大因子 $|R(-100)|, |R(-10)|$ 遠大於 1，結果溢出 $10^{20}$。
+2. 穩定性邊界非常貼近理論值 $2.7853/1000 \approx 2.79\times 10^{-3}$：$\Delta t = 3\times 10^{-3}$ 已失控、$\Delta t = 2.5\times 10^{-3}$ 剛好收斂 — 邊界寬度不足 15%。
+3. 這是**剛性 (stiffness)** 的教科書案例：顯式方法為了穩定必須追蹤早已衰減的快模態。
+4. 正確對策：用 **implicit / A-stable** 方法（Backward Euler、Trapezoidal、BDF）即可在 $\Delta t \sim \mathcal{O}(10^{-1})$ 仍穩定，而 RK-4 被綁死在 $\Delta t \sim 10^{-3}$。
+
+見 `hw3_figures/fig3_rk4_timestep.png`：比較 $\Delta t = 0.01$（失控）、$3\times 10^{-3}$（邊界）、$2.5\times 10^{-3}$（剛好收斂）、$10^{-3}$（精確）。
 
 ---
 
@@ -230,62 +229,52 @@ $$16\sqrt{5h - h^2}\,\frac{dh}{dt} = -\sin\!\frac{\pi t}{60},\qquad h(0) = 2,\qu
 
 改寫為 $\displaystyle \frac{dh}{dt} = -\frac{\sin(\pi t / 60)}{16\sqrt{h(5 - h)}}$
 
-注意：分母在 $h = 0$ 和 $h = 5$ 時為零（可行域 $0 < h < 5$）。時間步太大時可能衝出邊界而引發 $\sqrt{\cdot}$ 異常。
+可行域 $0 < h < 5$；分母於 $h \to 0, 5$ 發散。
 
 ### 解析解（作為參考）
 
-分離變數：
-
-$$\int 16\sqrt{h(5-h)}\,dh = -\int \sin\!\frac{\pi t}{60}\,dt$$
-
-令 $u = h - 5/2$，$R = 5/2$，則 $h(5-h) = R^2 - u^2$。利用
-$\int \sqrt{R^2 - u^2}\,du = \tfrac{u}{2}\sqrt{R^2-u^2} + \tfrac{R^2}{2}\arcsin(u/R)$：
+分離變數並取 $u = h - 5/2,\ R = 5/2$，使用 $\int \sqrt{R^2 - u^2}\,du = \tfrac{u}{2}\sqrt{R^2-u^2} + \tfrac{R^2}{2}\arcsin(u/R)$：
 
 $$G(h) \equiv 8\!\left(h - \tfrac{5}{2}\right)\sqrt{h(5-h)} + 50\arcsin\!\frac{2h - 5}{5}$$
 
 $$\boxed{G(h(t)) - G(h_0) = \frac{60}{\pi}\!\left[\cos\!\frac{\pi t}{60} - 1\right]}$$
 
-週期 $= 120$（與題目區間一致），故 $h(120) = h(0) = 2$。
+週期 = 120（與區間一致），故 $h(120) = h(0) = 2$。
 
 ### 數值實驗
 
-固定步長 $\Delta t$，跑 Euler 與 RK-4，與解析解取最大絕對誤差：
+固定步長，跑 Euler 與 RK-4，與解析解取最大絕對誤差：
 
 | $\Delta t$ | Euler 最大誤差 | RK-4 最大誤差 |
 |:--:|:--:|:--:|
-| 10.0 | $1.53 \times 10^{-1}$ | $6.10 \times 10^{-5}$ |
-| 5.0 | $7.57 \times 10^{-2}$ | $3.92 \times 10^{-6}$ |
-| 2.0 | $2.98 \times 10^{-2}$ ✓ | $1.03 \times 10^{-7}$ |
-| 1.0 | $1.48 \times 10^{-2}$ | $6.49 \times 10^{-9}$ |
-| 0.5 | $7.39 \times 10^{-3}$ | $\approx 10^{-6}$ † |
-| 0.1 | $1.48 \times 10^{-3}$ | $\approx 10^{-6}$ † |
-| 0.01 | $1.47 \times 10^{-4}$ | $\approx 10^{-6}$ † |
+| 10.0 | $1.53\times 10^{-1}$ | $6.10\times 10^{-5}$ |
+| 5.0 | $7.57\times 10^{-2}$ | $3.92\times 10^{-6}$ |
+| 2.0 | $2.98\times 10^{-2}$ ✓ | $1.03\times 10^{-7}$ |
+| 1.0 | $1.48\times 10^{-2}$ | $6.49\times 10^{-9}$ |
+| 0.5 | $7.39\times 10^{-3}$ | $\sim 10^{-6}$ † |
+| 0.1 | $1.48\times 10^{-3}$ | $\sim 10^{-6}$ † |
+| 0.01 | $1.48\times 10^{-4}$ | $\sim 10^{-6}$ † |
 
-† RK-4 誤差在 $\Delta t \lesssim 1$ 後「停滯」於 $\sim 10^{-6}$，**這是解析解 bisection + 參考網格插值** 所貢獻的誤差基線（不是數值方法本身的限制）。
+† RK-4 誤差在 $\Delta t \lesssim 1$ 後停滯於 $\sim 10^{-6}$，此為**解析解 bisection + 參考網格插值** 的誤差基線，非 RK-4 本身的限制。
 
 ### 回答題目
 
-**「incorrect solution」定義**：本文採用兩層判準：
-
-1. **寬鬆定義（工程可接受）**：最大絕對誤差 $|h_{\text{num}} - h_{\text{exact}}|_\infty > 0.05$（約為液位量級 $h \sim 2$ 的 2.5%）。
-2. **嚴格定義（工程精準）**：最大絕對誤差 $> 10^{-3}$。
-
-逐一判讀：
+「incorrect solution」採雙判準：寬鬆 $|err|_\infty > 0.05$（約 $h$ 量級的 2.5%），嚴格 $|err|_\infty > 10^{-3}$。
 
 | 方法 | 最大允許 $\Delta t$ |
 |---|:--:|
-| Euler | $\Delta t \lesssim 2.0$（誤差 $\sim 3\%$） |
-| RK-4 | $\Delta t \lesssim 10.0$ 仍精確至 $10^{-4}$ 等級 |
+| Euler（寬鬆） | $\Delta t \lesssim 2.0$（誤差 $\sim 3\%$） |
+| Euler（嚴格） | $\Delta t \lesssim 0.1$ |
+| RK-4（寬鬆） | $\Delta t \lesssim 10.0$ 已精確至 $10^{-4}$ |
+| RK-4（嚴格） | $\Delta t = 1.0$ 即達 $10^{-9}$ |
 
-若要求更嚴格的精度（如 $10^{-3}$），Euler 需 $\Delta t \lesssim 0.1$；RK-4 在 $\Delta t = 1.0$ 就已經達到 $10^{-9}$。
+**比較**：
 
-**比較 (comparison)**：
+1. **精度階數**：Euler $O(\Delta t)$，RK-4 $O(\Delta t^4)$。Euler 誤差縮步長 2 倍約減半、RK-4 縮 16 倍，與理論一致。
+2. **效率**：RK-4 每步 4 次右側計算，Euler 1 次；但 Euler 需小 50–100 倍步長才同精度 — RK-4 實際**快 1–2 個數量級**。
+3. **穩定性**：本題非剛性，邊界奇異性（$h\to 0, 5$）使大步長 Euler 有衝出域風險；初值 $h_0=2$ 遠離邊界，實驗中 $\Delta t \leq 10$ 都未實際發散，但 Euler 大步長已明顯失真。
 
-1. **精度階數**：Euler 為 $O(\Delta t)$，RK-4 為 $O(\Delta t^4)$。觀察 Euler 誤差每次縮步長 2 倍約減半，RK-4 則縮 16 倍，與理論吻合。
-2. **效率**：RK-4 每步 4 次右側計算，Euler 1 次。但 Euler 需要小 50–100 倍的步長才能達同等精度 — RK-4 實際 **快 1~2 個數量級**。
-3. **穩定性**：本題非剛性 (not stiff)，但邊界奇異性（$h\to 0, 5$）使大步長的 Euler 可能衝出域。實驗中，由於初值 $h_0=2$ 遠離邊界，兩法在 $\Delta t \leq 10$ 範圍均未發生實際的域外失敗；不過 Euler 大步長已明顯失真。
-
-見 `hw3_figures/fig4_tank_euler_vs_rk.png`（$\Delta t = 1.0$ 與 $0.1$ 兩情境的比較）。
+見 `hw3_figures/fig4_tank_euler_vs_rk.png`（$\Delta t = 1.0$ 與 $0.1$ 的 Euler/RK-4 對照）。
 
 ---
 
@@ -293,11 +282,11 @@ $$\boxed{G(h(t)) - G(h_0) = \frac{60}{\pi}\!\left[\cos\!\frac{\pi t}{60} - 1\rig
 
 | 題目 | 主要產出 |
 |---|---|
-| 第一題 | 啤酒發酵 ODE 系統（Monod × curve A），7 天 100% 糖消耗，乙醇 58 g/L；$T_{\text{opt}}$ 敏感度顯示超出日變化範圍則顯著遲滯 |
-| 第二題 | LV 無量綱化：$dx/d\tau = x(1-y)$、$dy/d\tau = \alpha y(x-1)$，4 參數 → 1 參數 $\alpha = d/r$ |
-| 第三題 | RK-4 收斂於 $\Delta t \approx 0.1$；誤差階次實測為 $O(\Delta t^4)$ |
-| 第四題 | 水槽液位解析解 $G(h) = (60/\pi)(\cos(\pi t/60)-1) + G(h_0)$；Euler 需 $\Delta t \lesssim 2$（粗精度）或 $\lesssim 0.1$（高精度），RK-4 在 $\Delta t \lesssim 10$ 即已極精確 |
+| 第一題 | Fig 5.8 原方程 × Fig 5.4 curve A（$k_1{=}1.25, k_2{=}1.5, k_3{=}29.3, k_4{=}40$），7 天消耗 85% 糖、ABV≈6.6%；$k_3, a, d$ 的敏感度符合物理預期 |
+| 第二題 | LV 非量綱化：$dx/d\tau = x(1-y)$、$dy/d\tau = \alpha y(x-1)$，4 參數 → 1 參數 $\alpha = d/r$ |
+| 第三題 | Eq. 6.4 剛性系統 ($\lambda = -1, -1000$)；題目給的 $\Delta t = (1.0, 0.5, 0.1, 0.01)$ **全部不穩定**；RK-4 穩定性要求 $\Delta t \lesssim 2.79\times 10^{-3}$，收斂於 $\Delta t \approx 2.5\times 10^{-3}$ |
+| 第四題 | 水槽液位解析解 $G(h) = (60/\pi)(\cos(\pi t/60) - 1) + G(h_0)$；Euler 需 $\Delta t \lesssim 2$（粗）或 $\lesssim 0.1$（細），RK-4 於 $\Delta t \lesssim 10$ 即已極精確 |
 
 ---
 
-*所有模擬由 `hw3_solution.py` 產生。執行：`python3 hw3_solution.py`*
+*所有模擬由 `hw3_solution.py` 產生。執行：`python hw3_solution.py`*
