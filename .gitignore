@@ -1,0 +1,12 @@
+# Windows "mark of the web" metadata
+*:Zone.Identifier
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
