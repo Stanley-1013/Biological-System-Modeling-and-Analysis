@@ -39,43 +39,32 @@ $$\boxed{\;\mathrm{var}(z)\;\approx\;\sum_{j=1}^{n}\sum_{i=1}^{n}\frac{\partial 
 
 ### (1) $z = e^{k_1 x}$
 
-> 題目要求「for functions of two variables (x, y), calculate both correlated and uncorrelated forms」
-> 中的「兩變數」指的是任何兩個含不確定性的量；本題的兩個變數是 $k_1$ 與 $x$（$k_1$ 為待估參數、
-> $x$ 為自變數，兩者都帶誤差）。下方 cross-term 中的 $\sigma_{xk_1}$ 即等同於題目的 $\sigma_{xy}$。
+> 依題目「functions of two variables **(x, y)**」的標示，帶誤差的隨機變數為 $x, y$，
+> 參數 $k_i$ 視為常數。本式只含單一隨機變數 $x$，屬**單變數**問題，沒有相關/不相關之分。
 
-兩個獨立變數：$k_1$ 與 $x$。
+$$\frac{\partial z}{\partial x}=k_1\,e^{k_1 x}$$
 
-$$\frac{\partial z}{\partial k_1}=x\,e^{k_1 x},\qquad \frac{\partial z}{\partial x}=k_1\,e^{k_1 x}$$
+$$\boxed{\;\sigma_z^{2}\;=\;\left(\frac{\partial z}{\partial x}\right)^{2}\sigma_x^{2}\;=\;k_1^{2}\,e^{2k_1 x}\,\sigma_x^{2}\;}$$
 
-**不相關 (uncorrelated)**：
-$$\boxed{\;\sigma_z^{2}\;=\;\bigl(k_1^{2}\sigma_x^{2}+x^{2}\sigma_{k_1}^{2}\bigr)\,e^{2k_1 x}\;}$$
-
-**相關 (correlated)**：增加 cross-term $2(\partial z/\partial x)(\partial z/\partial k_1)\sigma_{xk_1}$：
-$$\sigma_z^{2}\;=\;\bigl(k_1^{2}\sigma_x^{2}+2k_1 x\,\sigma_{xk_1}+x^{2}\sigma_{k_1}^{2}\bigr)\,e^{2k_1 x}$$
-
-> 物理意義：誤差被 $e^{2k_1 x}$ 放大（指數爆炸），任何小擾動皆會被放大；當 $\sigma_{xk_1}>0$（兩者
-> 同向漂移）誤差再加碼，若 $\sigma_{xk_1}<0$ 則部分抵銷。
+> 物理意義：誤差被 $e^{2k_1 x}$ 放大（指數爆炸），$x$ 的任何小擾動都被指數放大。
+> （單變數，無 cross-term。若 $k_1$ 另有不確定性，才需追加 $x^2 e^{2k_1 x}\sigma_{k_1}^2$ 一項。）
 
 ---
 
 ### (2) $z = k_1\cos(k_2 x) + k_3\sin(k_4 y)$
 
-六個變數：$k_1, k_2, k_3, k_4, x, y$。逐一偏微分：
+兩個隨機變數 $x, y$（$k_i$ 為常數）。偏微分：
 
-$$\begin{aligned}
-\partial z/\partial k_1 &= \cos(k_2 x), & \partial z/\partial k_2 &= -k_1 x\sin(k_2 x) \\
-\partial z/\partial k_3 &= \sin(k_4 y), & \partial z/\partial k_4 &= k_3 y\cos(k_4 y) \\
-\partial z/\partial x   &= -k_1 k_2\sin(k_2 x), & \partial z/\partial y &= k_3 k_4\cos(k_4 y).
-\end{aligned}$$
+$$\frac{\partial z}{\partial x}=-k_1 k_2\sin(k_2 x),\qquad \frac{\partial z}{\partial y}=k_3 k_4\cos(k_4 y)$$
 
-**不相關**：
-$$\boxed{\;\sigma_z^{2}\;=\;\cos^2(k_2 x)\,\sigma_{k_1}^{2}\;+\;k_1^{2}x^{2}\sin^2(k_2 x)\,\sigma_{k_2}^{2}\;+\;\sin^2(k_4 y)\,\sigma_{k_3}^{2}\;+\;k_3^{2}y^{2}\cos^2(k_4 y)\,\sigma_{k_4}^{2}\;+\;k_1^{2}k_2^{2}\sin^2(k_2 x)\,\sigma_x^{2}\;+\;k_3^{2}k_4^{2}\cos^2(k_4 y)\,\sigma_y^{2}\;}$$
+**不相關 (uncorrelated)**：
+$$\boxed{\;\sigma_z^{2}\;=\;k_1^{2}k_2^{2}\sin^2(k_2 x)\,\sigma_x^{2}\;+\;k_3^{2}k_4^{2}\cos^2(k_4 y)\,\sigma_y^{2}\;}$$
 
-**相關**：只有 $(x,y)$ 屬同一函數結構中可能相關（題目通常只關心兩變數相關），加上
-$$+\;2\,(\partial z/\partial x)(\partial z/\partial y)\,\sigma_{xy}\;=\;-2\,k_1 k_2 k_3 k_4\,\sin(k_2 x)\cos(k_4 y)\,\sigma_{xy}$$
+**相關 (correlated)**：增加 cross-term $2(\partial z/\partial x)(\partial z/\partial y)\sigma_{xy}$：
+$$\sigma_z^{2}\;=\;k_1^{2}k_2^{2}\sin^2(k_2 x)\,\sigma_x^{2}\;+\;k_3^{2}k_4^{2}\cos^2(k_4 y)\,\sigma_y^{2}\;-\;2\,k_1 k_2 k_3 k_4\,\sin(k_2 x)\cos(k_4 y)\,\sigma_{xy}$$
 
-> 注意：本題的「相關」是針對 $(x,y)$；參數 $k_i$ 通常視為相互獨立（不同實驗測得），但若需嚴格通用形式
-> 可再寫出 15 個 cross-term（$\binom{6}{2}$）。
+> cross-term 係數 $-2k_1 k_2 k_3 k_4\sin(k_2 x)\cos(k_4 y)$ 的正負隨 $(x,y)$ 所在相位而定，
+> 故 $x,y$ 的相關性可能增大或減小總變異。
 
 ---
 
@@ -447,7 +436,7 @@ $E_1=(20,0)$ 與 $E_0=(0,0)$ 只是不穩定的邊角平衡，分隔吸引域邊
 
 | 題 | 結論 | 關鍵數字 |
 |:-:|:--|:--|
-| P1 | 用 Eq. 9.3 (Taylor 一階) 推三式之 var(z) | $\sigma_z^2$(uncorr/corr) 全給出，與 Table 9.2 一致 |
+| P1 | 用 Eq. 9.3 (Taylor 一階) 推三式之 var(z)；$x,y$ 為隨機變數、$k_i$ 為常數 | (1) 單變數無 cross-term；(2)(3) 給 uncorr/corr 兩式，與 Table 9.2 一致 |
 | P2 | 敏感度排序 **$b>d\gg n$**；解析 var(P)=0.72；MC 重現教科書 Fig. 9.6 | $S_b\!\approx\!15,\;S_d\!\approx\!12,\;S_n\!\approx\!1$ |
 | P3 | Case III 共存點 $(100, 500)$ **穩定** | $\lambda=(-0.05,-0.006)$ 皆負 |
 | P4 | $(10,1)$ 為唯一穩定螺旋焦點；$(20,0)$ 為 saddle；$(0,0)$ 退化 | $E_2$: $\lambda=-5\pm 5i$ |

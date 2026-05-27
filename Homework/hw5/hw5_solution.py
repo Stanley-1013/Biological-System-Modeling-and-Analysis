@@ -36,39 +36,30 @@ def problem1():
     print("Problem 1: Error propagation (Eq. 9.3 + Table 9.2 logic)")
     print("=" * 60)
 
-    # ------ (1)  z = exp(k1 * x) ------
-    x, k1, sx, sk1, sxk1 = sp.symbols("x k_1 sigma_x sigma_{k_1} sigma_{xk_1}", real=True)
+    # ------ (1)  z = exp(k1 * x)  —  single random variable x (k1 constant) ------
+    x, k1, sx = sp.symbols("x k_1 sigma_x", real=True)
     z1 = sp.exp(k1 * x)
-    dz_dk1 = sp.diff(z1, k1)
-    dz_dx  = sp.diff(z1, x)
-    var1_uncorr = dz_dk1**2 * sk1**2 + dz_dx**2 * sx**2
-    var1_corr   = dz_dk1**2 * sk1**2 + dz_dx**2 * sx**2 + 2 * dz_dk1 * dz_dx * sxk1
+    dz_dx = sp.diff(z1, x)
+    var1 = dz_dx**2 * sx**2            # single variable: no corr/uncorr distinction
 
-    print("\n(1) z = exp(k1*x)")
-    print("    ∂z/∂k1 =", dz_dk1, "    ∂z/∂x =", dz_dx)
-    print("    var(z) [uncorr]  =", sp.simplify(var1_uncorr))
-    print("    var(z) [corr]    =", sp.simplify(var1_corr))
+    print("\n(1) z = exp(k1*x)   [single variable x; k1 constant]")
+    print("    ∂z/∂x =", dz_dx)
+    print("    var(z) =", sp.simplify(var1))
 
-    # ------ (2)  z = k1*cos(k2*x) + k3*sin(k4*y) ------
+    # ------ (2)  z = k1*cos(k2*x) + k3*sin(k4*y)  —  two random variables x, y ------
     k2, k3, k4, y = sp.symbols("k_2 k_3 k_4 y", real=True)
-    sk2, sk3, sk4, sy = sp.symbols("sigma_{k_2} sigma_{k_3} sigma_{k_4} sigma_y", real=True)
-    sxy = sp.symbols("sigma_{xy}", real=True)
+    sy, sxy = sp.symbols("sigma_y sigma_{xy}", real=True)
     z2 = k1 * sp.cos(k2 * x) + k3 * sp.sin(k4 * y)
-    # Variables: k1, k2, k3, k4, x, y  (6 vars)
-    var2_uncorr = (
-        sp.diff(z2, k1) ** 2 * sk1 ** 2
-        + sp.diff(z2, k2) ** 2 * sk2 ** 2
-        + sp.diff(z2, k3) ** 2 * sk3 ** 2
-        + sp.diff(z2, k4) ** 2 * sk4 ** 2
-        + sp.diff(z2, x ) ** 2 * sx  ** 2
-        + sp.diff(z2, y ) ** 2 * sy  ** 2
-    )
-    var2_corr = var2_uncorr + 2 * sp.diff(z2, x) * sp.diff(z2, y) * sxy
-    print("\n(2) z = k1*cos(k2*x) + k3*sin(k4*y)")
+    # Random variables: x, y  (k_i are constants)
+    dz2_dx, dz2_dy = sp.diff(z2, x), sp.diff(z2, y)
+    var2_uncorr = dz2_dx ** 2 * sx ** 2 + dz2_dy ** 2 * sy ** 2
+    var2_corr = var2_uncorr + 2 * dz2_dx * dz2_dy * sxy
+    print("\n(2) z = k1*cos(k2*x) + k3*sin(k4*y)   [two variables x, y; k_i constant]")
+    print("    ∂z/∂x =", dz2_dx, "    ∂z/∂y =", dz2_dy)
     print("    var(z) [uncorr] =")
     sp.pprint(sp.simplify(var2_uncorr))
-    print("    extra correlated cross-term (x,y only):  2(∂z/∂x)(∂z/∂y)σ_xy =")
-    sp.pprint(2 * sp.diff(z2, x) * sp.diff(z2, y) * sxy)
+    print("    var(z) [corr]   =")
+    sp.pprint(sp.simplify(var2_corr))
 
     # ------ (3)  z = x^3 * y^{-3} ------
     z3 = x ** 3 * y ** (-3)

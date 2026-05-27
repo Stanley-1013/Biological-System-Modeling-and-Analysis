@@ -11,22 +11,18 @@
 
 不相關時 $\sigma_{ij}=0\,(i\neq j)$；相關時加 cross-term $2\,(\partial f/\partial x)(\partial f/\partial y)\sigma_{xy}$。
 
-### (1) $z = e^{k_1 x}$
+### (1) $z = e^{k_1 x}$（單變數 $x$；$k_1$ 為常數 → 無 corr/uncorr 之分）
 
-$\partial z/\partial k_1 = x e^{k_1 x},\;\; \partial z/\partial x = k_1 e^{k_1 x}$
+$\partial z/\partial x = k_1 e^{k_1 x}$
 
-- **Uncorr**: $\sigma_z^{2} = (k_1^{2}\sigma_x^{2} + x^{2}\sigma_{k_1}^{2})\,e^{2k_1 x}$
-- **Corr**:   $\sigma_z^{2} = (k_1^{2}\sigma_x^{2} + 2k_1 x\,\sigma_{xk_1} + x^{2}\sigma_{k_1}^{2})\,e^{2k_1 x}$
+$\sigma_z^{2} = (\partial z/\partial x)^2\,\sigma_x^{2} = k_1^{2}\,e^{2k_1 x}\,\sigma_x^{2}$
 
-### (2) $z = k_1\cos(k_2 x) + k_3\sin(k_4 y)$
+### (2) $z = k_1\cos(k_2 x) + k_3\sin(k_4 y)$（兩變數 $x,y$；$k_i$ 為常數）
 
-6 變數，偏微：
-$\partial/\partial k_1=\cos(k_2x),\;\partial/\partial k_2=-k_1 x\sin(k_2x),\;\partial/\partial k_3=\sin(k_4y),\;\partial/\partial k_4=k_3 y\cos(k_4y)$
-$\partial/\partial x=-k_1k_2\sin(k_2x),\;\partial/\partial y=k_3k_4\cos(k_4y)$
+$\partial z/\partial x=-k_1k_2\sin(k_2x),\;\;\partial z/\partial y=k_3k_4\cos(k_4y)$
 
-- **Uncorr**:
-$\sigma_z^{2}=\cos^{2}(k_2x)\sigma_{k_1}^{2}+k_1^{2}x^{2}\sin^{2}(k_2x)\sigma_{k_2}^{2}+\sin^{2}(k_4y)\sigma_{k_3}^{2}+k_3^{2}y^{2}\cos^{2}(k_4y)\sigma_{k_4}^{2}+k_1^{2}k_2^{2}\sin^{2}(k_2x)\sigma_x^{2}+k_3^{2}k_4^{2}\cos^{2}(k_4y)\sigma_y^{2}$
-- **Corr** (only $(x,y)$): 加 $-2k_1k_2k_3k_4\sin(k_2x)\cos(k_4y)\,\sigma_{xy}$
+- **Uncorr**: $\sigma_z^{2}=k_1^{2}k_2^{2}\sin^{2}(k_2x)\sigma_x^{2}+k_3^{2}k_4^{2}\cos^{2}(k_4y)\sigma_y^{2}$
+- **Corr**:   加 cross-term $-2k_1k_2k_3k_4\sin(k_2x)\cos(k_4y)\,\sigma_{xy}$
 
 ### (3) $z = x^{3}y^{-3}$
 
