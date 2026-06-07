@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HIV Vaccination on the sIC AIDS Model — Part 2</title>
+
+<!-- Google Fonts: Archivo (display, tight tracking) + Nunito Sans (body) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800;900&family=Nunito+Sans:ital,opsz,wght@0,6..12,400;0,6..12,600;0,6..12,700;1,6..12,400&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   MANDATORY BASE CSS (viewport-fit, given by spec)
+   ============================================================ */
+html,body{height:100%;overflow-x:hidden}
+html{scroll-snap-type:y mandatory;scroll-behavior:smooth}
+.slide{width:100vw;height:100vh;height:100dvh;overflow:hidden;scroll-snap-align:start;display:flex;flex-direction:column;position:relative}
+.slide-content{flex:1;display:flex;flex-direction:column;justify-content:center;max-height:100%;overflow:hidden;padding:var(--slide-padding)}
+:root{--title-size:clamp(1.5rem,5vw,4rem);--h2-size:clamp(1.25rem,3.5vw,2.5rem);--h3-size:clamp(1rem,2.5vw,1.75rem);--body-size:clamp(0.75rem,1.5vw,1.125rem);--small-size:clamp(0.65rem,1vw,0.875rem);--slide-padding:clamp(0.9rem,2.6vw,2.5rem);--content-gap:clamp(0.5rem,1.6vw,1.5rem);--element-gap:clamp(0.25rem,0.9vw,0.9rem)}
+img{max-width:100%;max-height:min(52vh,380px);object-fit:contain}
+@media (max-height:700px){:root{--slide-padding:clamp(.75rem,3vw,2rem);--title-size:clamp(1.25rem,4.5vw,2.5rem);--h2-size:clamp(1rem,3vw,1.75rem)}}
+@media (max-height:600px){:root{--slide-padding:clamp(.5rem,2.5vw,1.5rem);--body-size:clamp(.7rem,1.2vw,.95rem)} .nav-dots,.kbd-hint,.decor{display:none}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.2s!important}html{scroll-behavior:auto}}
+
+/* ============================================================
+   SWISS MODERN THEME TOKENS
+   Light, precise, grid-based, data-forward.
+   ============================================================ */
+:root{
+  /* Palette */
+  --paper:#FAFAF8;        /* background */
+  --ink:#14181F;          /* primary text */
+  --ink-soft:#444B57;     /* secondary text */
+  --hairline:#E4E4DD;     /* grid rules / borders */
+  --baseline:#8A94A6;     /* baseline curve grey */
+  --vacc:#1F7A8C;         /* vaccination teal */
+  --condom:#2E8B57;       /* condoms green */
+  --signal:#E5484D;       /* Swiss signal accent */
+
+  /* Type families */
+  --font-display:"Archivo",system-ui,sans-serif;
+  --font-body:"Nunito Sans",system-ui,sans-serif;
+
+  /* Motion */
+  --dur:280ms;
+  --ease:cubic-bezier(0.16,1,0.3,1);
+
+  /* Card surface for white-bg plots */
+  --card-radius:2px;
+  --card-shadow:0 1px 2px rgba(20,24,31,.04),0 8px 24px rgba(20,24,31,.06);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  font-size:var(--body-size);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* Hairline grid overlay on every slide — visible Swiss structure */
+.slide::before{
+  content:"";
+  position:absolute;inset:0;
+  pointer-events:none;
+  background-image:
+    linear-gradient(var(--hairline) 1px,transparent 1px),
+    linear-gradient(90deg,var(--hairline) 1px,transparent 1px);
+  background-size:clamp(48px,8vw,120px) clamp(48px,8vw,120px);
+  opacity:.35;
+  z-index:0;
+}
+.slide-content{position:relative;z-index:1}
+
+/* ---- Typographic system ---- */
+.kicker{
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:var(--small-size);
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--signal);
+  display:flex;align-items:center;gap:.6em;
+  margin:0 0 var(--element-gap);
+}
+.kicker::before{
+  content:"";
+  width:clamp(18px,3vw,40px);height:2px;
+  background:var(--signal);
+  display:inline-block;
+}
+h1,h2,h3{
+  font-family:var(--font-display);
+  margin:0;
+  line-height:1.02;
+  letter-spacing:-.02em;
+}
+h1{font-size:var(--title-size);font-weight:900}
+h2{font-size:var(--h2-size);font-weight:800}
+h3{font-size:var(--h3-size);font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+strong{font-weight:700}
+.num{font-variant-numeric:tabular-nums}
+
+/* KEY MESSAGE — one-line, signal underline */
+.keymsg{
+  font-family:var(--font-body);
+  font-weight:700;
+  font-size:var(--h3-size);
+  line-height:1.25;
+  color:var(--ink);
+  padding-left:clamp(.5rem,1.2vw,1rem);
+  border-left:3px solid var(--signal);
+  margin:var(--element-gap) 0;
+}
+.keymsg .label{
+  display:block;
+  font-family:var(--font-display);
+  font-weight:700;
+  font-size:var(--small-size);
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--signal);
+  margin-bottom:.25em;
+}
+
+/* Bullets — tight, hairline-led, no default discs */
+ul.bullets{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--element-gap)}
+ul.bullets li{
+  position:relative;
+  padding-left:1.4em;
+  font-size:var(--body-size);
+  color:var(--ink-soft);
+  line-height:1.4;
+}
+ul.bullets li::before{
+  content:"";
+  position:absolute;left:0;top:.55em;
+  width:.55em;height:.55em;
+  background:var(--vacc);
+}
+ul.bullets li strong{color:var(--ink)}
+
+/* Oversized slide index — Swiss editorial number */
+.slide-no{
+  position:absolute;
+  font-family:var(--font-display);
+  font-weight:900;
+  font-size:clamp(4rem,18vw,16rem);
+  line-height:.8;
+  color:var(--signal);
+  opacity:.07;
+  z-index:0;
+  right:clamp(.5rem,2vw,2rem);
+  bottom:clamp(-.5rem,0vw,1rem);
+  pointer-events:none;
+  user-select:none;
+}
+
+/* Figure card — white plots read as deliberate exhibits */
+.fig{
+  background:#fff;
+  border:1px solid var(--hairline);
+  border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow);
+  padding:clamp(.5rem,1.2vw,1rem);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  min-height:0;
+}
+.fig img{display:block}
+.fig figcaption{
+  font-size:var(--small-size);
+  color:var(--ink-soft);
+  margin-top:.5em;
+  text-align:center;
+  font-family:var(--font-display);
+  font-weight:600;
+  letter-spacing:.04em;
+}
+
+/* Two-column content layout (text | figure), asymmetric */
+.cols{
+  display:grid;
+  grid-template-columns:minmax(0,0.92fr) minmax(0,1.08fr);
+  gap:var(--content-gap);
+  align-items:center;
+  min-height:0;
+}
+.cols.text-wide{grid-template-columns:minmax(0,1.1fr) minmax(0,0.9fr)}
+.col{display:flex;flex-direction:column;gap:var(--element-gap);min-height:0}
+@media (max-width:760px){
+  .cols,.cols.text-wide{grid-template-columns:1fr;gap:var(--element-gap)}
+  .fig img{max-height:min(40vh,300px)}
+}
+
+/* Header block reused across content slides */
+.head{display:flex;flex-direction:column;gap:.2em;margin-bottom:var(--element-gap)}
+
+/* ===== Slide 1: Title ===== */
+.title-slide .slide-content{justify-content:space-between}
+.title-top{display:flex;flex-direction:column;gap:var(--element-gap);padding-top:clamp(1rem,4vh,3rem)}
+.title-eyebrow{
+  font-family:var(--font-display);font-weight:700;
+  font-size:var(--small-size);letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-soft);
+}
+.title-slide h1{font-size:clamp(2rem,7.5vw,6rem);max-width:18ch}
+.title-rule{height:3px;background:var(--ink);width:clamp(60px,20vw,260px);margin:.3em 0}
+.title-sub{font-size:var(--h3-size);color:var(--ink-soft);max-width:46ch;font-weight:600}
+.title-meta{
+  display:flex;flex-wrap:wrap;gap:clamp(1rem,4vw,3.5rem);
+  border-top:1px solid var(--hairline);
+  padding-top:var(--element-gap);
+}
+.meta-cell{display:flex;flex-direction:column;gap:.15em}
+.meta-cell .lab{
+  font-family:var(--font-display);font-weight:700;
+  font-size:var(--small-size);letter-spacing:.14em;text-transform:uppercase;color:var(--signal);
+}
+.meta-cell .val{font-size:var(--body-size);color:var(--ink);font-weight:600}
+
+/* ===== Question grid (slide 2) ===== */
+.qgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:var(--element-gap);min-height:0}
+@media (max-width:760px){.qgrid{grid-template-columns:1fr}}
+.qcard{
+  border:1px solid var(--hairline);
+  border-top:3px solid var(--vacc);
+  background:#fff;
+  padding:clamp(.7rem,1.6vw,1.3rem);
+  display:flex;gap:.7em;align-items:flex-start;
+  border-radius:var(--card-radius);
+  box-shadow:var(--card-shadow);
+}
+.qcard:nth-child(1){border-top-color:var(--signal)}
+.qcard:nth-child(2){border-top-color:var(--vacc)}
+.qcard:nth-child(3){border-top-color:var(--condom)}
+.qcard:nth-child(4){border-top-color:var(--baseline)}
+.qcard .qtag{
+  font-family:var(--font-display);font-weight:900;
+  font-size:var(--h3-size);color:var(--ink);
+  line-height:1;flex:none;
+}
+.qcard p{font-size:var(--body-size);color:var(--ink-soft);line-height:1.35}
+
+/* ===== Compartment grid (slide 3) — 3x4 CSS boxes ===== */
+.compart-wrap{display:flex;flex-direction:column;gap:var(--element-gap);min-height:0}
+.compart{
+  display:grid;
+  grid-template-columns:auto repeat(4,1fr);
+  gap:clamp(3px,.6vw,8px);
+  align-items:stretch;
+}
+.compart .corner{font-size:var(--small-size);color:var(--ink-soft);display:flex;align-items:flex-end;font-family:var(--font-display);font-weight:700}
+.compart .chead{
+  font-family:var(--font-display);font-weight:700;
+  font-size:var(--small-size);letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink);text-align:center;align-self:end;padding-bottom:.2em;
+}
+.compart .rlab{
+  font-family:var(--font-display);font-weight:700;
+  font-size:var(--small-size);color:var(--ink-soft);
+  display:flex;align-items:center;padding-right:.5em;writing-mode:horizontal-tb;
+}
+.box{
+  border-radius:var(--card-radius);
+  padding:clamp(.3rem,.9vw,.7rem) clamp(.2rem,.6vw,.5rem);
+  text-align:center;
+  font-family:var(--font-display);font-weight:800;
+  font-size:var(--small-size);
+  color:#fff;line-height:1.05;
+  display:flex;align-items:center;justify-content:center;
+}
+.box.S{background:var(--baseline)}
+.box.I{background:var(--vacc)}
+.box.A{background:var(--signal)}
+.flows{
+  display:flex;flex-wrap:wrap;gap:.6em 1.4em;
+  font-size:var(--small-size);color:var(--ink-soft);
+  padding-top:var(--element-gap);border-top:1px solid var(--hairline);
+}
+.flows .lam{font-family:var(--font-display);font-weight:700;color:var(--ink)}
+
+/* ===== Parameter chips (slide 4) ===== */
+.params{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(120px,16vw,180px),1fr));gap:var(--element-gap)}
+.param{
+  border:1px solid var(--hairline);background:#fff;border-radius:var(--card-radius);
+  padding:clamp(.5rem,1.3vw,1rem);display:flex;flex-direction:column;gap:.1em;
+  box-shadow:var(--card-shadow);
+}
+.param .pv{font-family:var(--font-display);font-weight:900;font-size:var(--h3-size);color:var(--vacc);line-height:1}
+.param .pv.alt{color:var(--signal)}
+.param .pl{font-size:var(--small-size);color:var(--ink-soft);line-height:1.2}
+
+/* ===== Stat strip (closing / takeaways) ===== */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(clamp(110px,15vw,160px),1fr));gap:var(--element-gap)}
+.stat{border-left:2px solid var(--signal);padding-left:.7em;display:flex;flex-direction:column;gap:.1em}
+.stat .sv{font-family:var(--font-display);font-weight:900;font-size:var(--h3-size);color:var(--ink);line-height:1}
+.stat .sl{font-size:var(--small-size);color:var(--ink-soft)}
+
+/* numbered takeaway list */
+ol.takeaways{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--element-gap);counter-reset:tk}
+ol.takeaways li{
+  position:relative;padding-left:2.4em;font-size:var(--body-size);color:var(--ink-soft);line-height:1.4;counter-increment:tk;
+}
+ol.takeaways li::before{
+  content:counter(tk);
+  position:absolute;left:0;top:0;
+  font-family:var(--font-display);font-weight:900;font-size:var(--body-size);
+  color:#fff;background:var(--signal);
+  width:1.6em;height:1.6em;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--card-radius);
+}
+ol.takeaways li strong{color:var(--ink)}
+
+/* ===== Closing slide ===== */
+.closing .slide-content{justify-content:center;gap:var(--content-gap)}
+.closing h1{font-size:clamp(2.5rem,9vw,7rem)}
+.recap{
+  font-family:var(--font-display);font-weight:700;font-size:var(--h3-size);
+  color:var(--ink);background:#fff;border:1px solid var(--hairline);
+  border-left:3px solid var(--signal);box-shadow:var(--card-shadow);
+  padding:clamp(.7rem,2vw,1.4rem);max-width:40ch;border-radius:var(--card-radius);
+}
+.recap .num{color:var(--vacc)}
+.closing .foot{font-size:var(--body-size);color:var(--ink-soft);border-top:1px solid var(--hairline);padding-top:var(--element-gap)}
+
+/* ============================================================
+   NAVIGATION UI
+   ============================================================ */
+.progress{
+  position:fixed;top:0;left:0;height:3px;background:var(--signal);
+  width:0;z-index:50;transition:width var(--dur) var(--ease);
+}
+.index{
+  position:fixed;top:clamp(.6rem,2vh,1.4rem);right:clamp(.8rem,3vw,2rem);
+  z-index:50;font-family:var(--font-display);font-weight:700;
+  font-size:var(--small-size);letter-spacing:.1em;color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;
+}
+.index .cur{color:var(--signal);font-size:var(--body-size)}
+.nav-dots{
+  position:fixed;right:clamp(.6rem,1.5vw,1.2rem);top:50%;transform:translateY(-50%);
+  z-index:50;display:flex;flex-direction:column;gap:clamp(6px,1vw,10px);
+}
+.nav-dots button{
+  width:9px;height:9px;padding:0;border:1px solid var(--ink-soft);
+  background:transparent;border-radius:50%;cursor:pointer;
+  transition:all var(--dur) var(--ease);
+}
+.nav-dots button:hover{border-color:var(--signal);transform:scale(1.3)}
+.nav-dots button[aria-current="true"]{background:var(--signal);border-color:var(--signal);transform:scale(1.25)}
+.nav-dots button:focus-visible{outline:2px solid var(--vacc);outline-offset:2px}
+.kbd-hint{
+  position:fixed;left:clamp(.8rem,3vw,2rem);bottom:clamp(.6rem,2vh,1.4rem);
+  z-index:50;font-size:var(--small-size);color:var(--ink-soft);
+  font-family:var(--font-display);font-weight:600;letter-spacing:.06em;
+  display:flex;align-items:center;gap:.5em;
+}
+.kbd-hint kbd{
+  border:1px solid var(--hairline);background:#fff;border-radius:3px;
+  padding:.1em .45em;font-family:var(--font-display);font-size:.85em;color:var(--ink);
+}
+
+/* ============================================================
+   ENTER ANIMATIONS (staggered reveal via IntersectionObserver)
+   ============================================================ */
+.reveal{opacity:0;transform:translateY(18px);transition:opacity var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.slide.in-view .reveal{opacity:1;transform:none}
+.slide.in-view .reveal:nth-child(1){transition-delay:40ms}
+.slide.in-view .reveal:nth-child(2){transition-delay:110ms}
+.slide.in-view .reveal:nth-child(3){transition-delay:180ms}
+.slide.in-view .reveal:nth-child(4){transition-delay:250ms}
+.slide.in-view .reveal:nth-child(5){transition-delay:320ms}
+.slide.in-view .reveal:nth-child(6){transition-delay:390ms}
+</style>
+</head>
+<body>
+
+<!-- Fixed navigation chrome -->
+<div class="progress" id="progress" role="presentation"></div>
+<div class="index" aria-hidden="true"><span class="cur" id="curNo">01</span> / 15</div>
+<nav class="nav-dots" id="navDots" aria-label="Slide navigation"></nav>
+<div class="kbd-hint" aria-hidden="true"><kbd>&larr;</kbd><kbd>&rarr;</kbd> or scroll</div>
+
+<main id="deck">
+
+<!-- ============ SLIDE 1 — TITLE ============ -->
+<section class="slide title-slide" aria-label="Slide 1: Title">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">01</span>
+    <div class="title-top">
+      <span class="title-eyebrow reveal">Term Project &middot; Part 2</span>
+      <h1 class="reveal">HIV Vaccination on the sIC AIDS Model</h1>
+      <div class="title-rule reveal"></div>
+      <p class="title-sub reveal">A compartment-model study of epidemic control, cost, and intervention choice.</p>
+    </div>
+    <div class="title-meta reveal">
+      <div class="meta-cell">
+        <span class="lab">Author</span>
+        <span class="val">李傳漢 &middot; Chuan-Han Li</span>
+        <span class="val" style="color:var(--ink-soft);font-weight:600">B11611027</span>
+      </div>
+      <div class="meta-cell">
+        <span class="lab">Course</span>
+        <span class="val">BME5113</span>
+        <span class="val" style="color:var(--ink-soft);font-weight:600">Biological Systems Modeling &amp; Analysis</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 2 — THE QUESTION ============ -->
+<section class="slide" aria-label="Slide 2: The question">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">02</span>
+    <div class="head">
+      <span class="kicker reveal">Motivation &middot; Four Questions</span>
+      <h2 class="reveal">Can a vaccine bend an endemic epidemic?</h2>
+    </div>
+    <p class="keymsg reveal">In this model HIV is S&nbsp;&rarr;&nbsp;I&nbsp;&rarr;&nbsp;AIDS with births, so the infection persists endemically &mdash; it never burns out on its own.</p>
+    <div class="qgrid reveal">
+      <div class="qcard"><span class="qtag">a</span><p>Will a vaccine make the epidemic <strong>peak then decline</strong>?</p></div>
+      <div class="qcard"><span class="qtag">b</span><p>What does the vaccination program <strong>cost</strong>?</p></div>
+      <div class="qcard"><span class="qtag">c</span><p>What is the <strong>optimum vaccination rate</strong>?</p></div>
+      <div class="qcard"><span class="qtag">d</span><p>Vaccination vs. <strong>safe-sex / condoms</strong> &mdash; which controls it better?</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 3 — THE sIC MODEL ============ -->
+<section class="slide" aria-label="Slide 3: The sIC model">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">03</span>
+    <div class="head">
+      <span class="kicker reveal">Structure &middot; 12 Compartments</span>
+      <h2 class="reveal">The sIC model: {S, I, AIDS} &times; sex &times; age</h2>
+    </div>
+    <div class="compart-wrap reveal">
+      <!-- 3 classes (rows) x 4 sex-age groups (cols) -->
+      <div class="compart">
+        <div class="corner">class&nbsp;\&nbsp;group</div>
+        <div class="chead">F &middot; 0&ndash;15</div>
+        <div class="chead">F &middot; 16+</div>
+        <div class="chead">M &middot; 0&ndash;15</div>
+        <div class="chead">M &middot; 16+</div>
+
+        <div class="rlab">Susceptible</div>
+        <div class="box S">S<sub>f1</sub></div><div class="box S">S<sub>f2</sub></div><div class="box S">S<sub>m1</sub></div><div class="box S">S<sub>m2</sub></div>
+
+        <div class="rlab">Infected</div>
+        <div class="box I">I<sub>f1</sub></div><div class="box I">I<sub>f2</sub></div><div class="box I">I<sub>m1</sub></div><div class="box I">I<sub>m2</sub></div>
+
+        <div class="rlab">AIDS</div>
+        <div class="box A">A<sub>f1</sub></div><div class="box A">A<sub>f2</sub></div><div class="box A">A<sub>m1</sub></div><div class="box A">A<sub>m2</sub></div>
+      </div>
+      <div class="flows">
+        <span class="lam">&lambda; = c &middot; &beta; &middot; I / (S+I)</span>
+        <span>frequency-dependent force of infection</span>
+        <span>births &middot; ageing &xi; &middot; HIV&rarr;AIDS progression &gamma; &middot; AIDS mortality &alpha; &middot; natural mortality &mu;</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 4 — PARAMETERS ============ -->
+<section class="slide" aria-label="Slide 4: Parameters and why HIV persists">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">04</span>
+    <div class="head">
+      <span class="kicker reveal">Table 15.2 &middot; Why It Persists</span>
+      <h2 class="reveal">Parameters &amp; the endemic plateau</h2>
+    </div>
+    <div class="params reveal">
+      <div class="param"><span class="pv">0.20</span><span class="pl">&beta;<sub>mf</sub> male&rarr;female transmission</span></div>
+      <div class="param"><span class="pv alt">0.075</span><span class="pl">&beta;<sub>fm</sub> female&rarr;male transmission</span></div>
+      <div class="param"><span class="pv">2.35<span style="font-size:.6em">/yr</span></span><span class="pl">c partner-change rate</span></div>
+      <div class="param"><span class="pv">0.0227<span style="font-size:.55em">/yr</span></span><span class="pl">&mu; natural mortality</span></div>
+      <div class="param"><span class="pv">1.0<span style="font-size:.6em">/yr</span></span><span class="pl">&alpha; extra AIDS mortality</span></div>
+    </div>
+    <p class="keymsg reveal">
+      <span class="label">Key idea</span>
+      Transmission is asymmetric (&beta;<sub>mf</sub> &gt; &beta;<sub>fm</sub>) so women are infected more &mdash; and births continually refill susceptibles, driving an <strong>endemic plateau</strong> rather than burnout.
+    </p>
+  </div>
+</section>
+
+<!-- ============ SLIDE 5 — MODELING JUDGMENT: GAMMA ============ -->
+<section class="slide" aria-label="Slide 5: Modeling judgment, the progression rate gamma">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">05</span>
+    <div class="head">
+      <span class="kicker reveal">Modeling Judgment 1 &middot; The Rate &gamma;</span>
+      <h2 class="reveal">Recalibrating HIV&rarr;AIDS progression</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li>The textbook's literal <strong>&gamma; = 1.16/yr</strong> means HIV&rarr;AIDS in under a year &rarr; R&#8320; = c&middot;&radic;(&beta;<sub>mf</sub>&beta;<sub>fm</sub>)/(&mu;+&gamma;) = <strong>0.24 &lt; 1</strong> &rarr; no epidemic.</li>
+          <li>Biologically, HIV&rarr;AIDS takes <strong>~8&ndash;10 years</strong>.</li>
+          <li>We use <strong>&gamma; = 0.1/yr</strong> &rarr; <strong>R&#8320; &asymp; 2.35</strong>.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Key message</span>
+          A corrected, biologically grounded &gamma; is required for the model to behave like a real epidemic.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/verify_baseline_prevalence.png" alt="Baseline prevalence over time showing epidemic growth to an endemic plateau">
+        <figcaption>Baseline prevalence &mdash; growth to an endemic plateau</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 6 — VALIDATION ============ -->
+<section class="slide" aria-label="Slide 6: Validation against Figure 15.5">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">06</span>
+    <div class="head">
+      <span class="kicker reveal">Validation &middot; Fig. 15.5</span>
+      <h2 class="reveal">Calibrated against the published sIC model</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li>Baseline reproduces the textbook: growth to a high endemic plateau.</li>
+          <li>Female prevalence (<strong>0.77</strong>) above male (<strong>0.62</strong>).</li>
+          <li>Condom scenario (halving both &beta;) sharply suppresses it.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Key message</span>
+          The model is calibrated and behaves like the published sIC model before we add a vaccine.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/verify_condom_prevalence.png" alt="Prevalence comparison: baseline plateau versus condom scenario suppression">
+        <figcaption>Baseline vs. condom scenario prevalence</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 7 — VACCINE EXTENSION ============ -->
+<section class="slide" aria-label="Slide 7: The vaccine extension">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">07</span>
+    <div class="head">
+      <span class="kicker reveal">Model Extension &middot; Protected Compartments</span>
+      <h2 class="reveal">A &ldquo;take&rdquo;-with-waning vaccine</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li>Add protected adults <strong>P<sub>f2</sub>, P<sub>m2</sub></strong>; vaccinate susceptible adults at <strong>&nu; = 0.65/yr</strong> (&asymp; Garnett 2002 &ldquo;65% coverage&rdquo;).</li>
+          <li>Protection wanes at <strong>l = 0.1/yr</strong> (&asymp; 10-year mean).</li>
+          <li>Ceiling: at most <strong>&nu;/(&nu;+l) = 0.87</strong> of adults are ever protected.</li>
+          <li>Cost tracked via <strong>dV/dt = &nu;(S<sub>f2</sub>+S<sub>m2</sub>)</strong>.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Key message</span>
+          Protected people stay in the partner pool, so vaccination dilutes the infected fraction &mdash; this is what produces herd immunity.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/qa_protected_fraction.png" alt="Protected fraction of adults rising toward its waning ceiling">
+        <figcaption>Protected fraction &rarr; waning ceiling 0.87</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 8 — Q(a) PEAK & DECLINE ============ -->
+<section class="slide" aria-label="Slide 8: Question a, peak and decline">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">08</span>
+    <div class="head">
+      <span class="kicker reveal">Q(a) &middot; Peak &amp; Decline</span>
+      <h2 class="reveal">Does the vaccine make it peak then decline?</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li>Under &nu;&nbsp;=&nbsp;0.65, the effective reproduction number drops to <strong>R<sub>eff</sub> &asymp; 0.31 &lt; 1</strong>.</li>
+          <li>HIV incidence <strong>declines from the very start</strong>.</li>
+          <li>The untreated baseline instead peaks at <strong>791 new infections/yr</strong> around year 48.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Answer</span>
+          Yes &mdash; vaccination turns sustained growth into immediate decline.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/qa_incidence.png" alt="Incidence over time: baseline peaks near year 48 while vaccination declines from the start">
+        <figcaption>HIV incidence: baseline peak vs. vaccinated decline</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 9 — Q(b) COST ============ -->
+<section class="slide" aria-label="Slide 9: Question b, cost">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">09</span>
+    <div class="head">
+      <span class="kicker reveal">Q(b) &middot; Program Cost</span>
+      <h2 class="reveal">What does it cost?</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li>At <strong>&dollar;10 per vaccination</strong>: cumulative cost <strong>&asymp; &dollar;162k</strong> by year 30 (&asymp; &dollar;4,070/yr at steady state).</li>
+          <li>About <strong>&dollar;102 per infection averted</strong> at 30 years.</li>
+          <li>Within the <strong>&dollar;110&ndash;390</strong> range of the Imperial-College / Stover analyses.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Key message</span>
+          Cost-per-infection-averted is the transferable metric &mdash; absolute &dollar; scale with this small synthetic population.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/qb_cost.png" alt="Cumulative vaccination cost and cost per infection averted over 30 years">
+        <figcaption>Cumulative cost &amp; cost per infection averted</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 10 — Q(c) THRESHOLD ============ -->
+<section class="slide" aria-label="Slide 10: Question c, optimum rate threshold">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">10</span>
+    <div class="head">
+      <span class="kicker reveal">Q(c) &middot; The Critical Rate</span>
+      <h2 class="reveal">Optimum rate &mdash; the elimination threshold</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li>A critical rate <strong>&nu;<sub>c</sub> &asymp; 0.37/yr</strong> drives the epidemic to elimination above it.</li>
+          <li>Matches herd immunity: <strong>&nu;<sub>c</sub> = l&middot;p<sub>c</sub>/(1&minus;p<sub>c</sub>)</strong> with <strong>p<sub>c</sub> = 1 &minus; 1/R&#8320; &asymp; 0.574</strong>.</li>
+          <li>The standard <strong>&nu; = 0.65</strong> sits comfortably above &nu;<sub>c</sub>.</li>
+        </ul>
+      </div>
+      <figure class="fig">
+        <img src="assets/qc_prevalence_vs_nu.png" alt="Steady-state prevalence versus vaccination rate, collapsing past the critical rate">
+        <figcaption>Steady-state prevalence vs. vaccination rate &nu;</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 11 — Q(c) COST-EFFECTIVENESS ============ -->
+<section class="slide" aria-label="Slide 11: Question c, cost-effectiveness optimum">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">11</span>
+    <div class="head">
+      <span class="kicker reveal">Q(c) &middot; Two Optimums</span>
+      <h2 class="reveal">Optimum rate &mdash; best value vs. elimination</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li><strong>Epidemiological optimum:</strong> eliminate the epidemic, &nu; &ge; &nu;<sub>c</sub>.</li>
+          <li><strong>Cost-effective optimum:</strong> best value &mdash; a diminishing-returns knee near <strong>&nu; &asymp; 0.18/yr</strong>.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Key message</span>
+          &ldquo;Control the epidemic&rdquo; and &ldquo;best value for money&rdquo; are not the same target.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/qc_cost_effectiveness.png" alt="Cost-effectiveness curve with a diminishing-returns knee near nu equals 0.18">
+        <figcaption>Cost-effectiveness &mdash; the value knee at &nu; &asymp; 0.18</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 12 — Q(d) VACCINE vs CONDOMS ============ -->
+<section class="slide" aria-label="Slide 12: Question d, vaccination versus condoms">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">12</span>
+    <div class="head">
+      <span class="kicker reveal">Q(d) &middot; Vaccination vs. Condoms</span>
+      <h2 class="reveal">Which controls it better?</h2>
+    </div>
+    <div class="cols reveal">
+      <div class="col">
+        <ul class="bullets">
+          <li><strong>Vaccination</strong> (&nu;=0.65) &rarr; R<sub>eff</sub>=0.31, averts <strong>&asymp;31,224</strong> infections, explicit cost <strong>&asymp;&dollar;349k</strong>.</li>
+          <li><strong>Condoms</strong> (halving &beta;) &rarr; R&#8320;=1.17 (just above threshold), averts <strong>&asymp;30,857</strong>, no priced cost here.</li>
+        </ul>
+        <p class="keymsg">
+          <span class="label">Key message</span>
+          Essentially a tie on epidemiological outcome; they differ on cost basis and the vaccine's waning ceiling &mdash; no single winner is claimed.
+        </p>
+      </div>
+      <figure class="fig">
+        <img src="assets/qd_averted_and_reff.png" alt="Infections averted and effective reproduction number for vaccination versus condoms">
+        <figcaption>Infections averted &amp; R<sub>eff</sub> by strategy</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SLIDE 13 — TAKEAWAYS ============ -->
+<section class="slide" aria-label="Slide 13: Takeaways">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">13</span>
+    <div class="head">
+      <span class="kicker reveal">Synthesis &middot; What We Learned</span>
+      <h2 class="reveal">Takeaways</h2>
+    </div>
+    <ol class="takeaways reveal">
+      <li>A waning vaccine at <strong>&nu;=0.65</strong> drives <strong>R<sub>eff</sub>&lt;1</strong> and makes the epidemic decline.</li>
+      <li>It is <strong>cost-effective</strong> &mdash; about <strong>&dollar;102 per infection averted</strong>.</li>
+      <li>It is <strong>comparable to condom promotion</strong> on epidemiological outcome.</li>
+      <li>Conclusions hold <strong>above the herd-immunity threshold</strong> &nu;<sub>c</sub> &asymp; 0.37/yr.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ SLIDE 14 — LIMITATIONS ============ -->
+<section class="slide" aria-label="Slide 14: Limitations">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">14</span>
+    <div class="head">
+      <span class="kicker reveal">Honesty &middot; What To Distrust</span>
+      <h2 class="reveal">Limitations</h2>
+    </div>
+    <ul class="bullets reveal">
+      <li><strong>&gamma; recalibrated</strong> from the implausible literal textbook value.</li>
+      <li>Results are <strong>sensitive near the R&#8320; threshold</strong>, so condoms vs. vaccine is a close call.</li>
+      <li><strong>Small synthetic population</strong> &mdash; use cost-per-infection-averted, not absolute &dollar;.</li>
+      <li>A <strong>single operating point</strong> was analysed, not a full sweep of every parameter.</li>
+      <li>The herd-immunity result <strong>depends on keeping protected people in the partner pool</strong>.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ SLIDE 15 — CLOSING ============ -->
+<section class="slide closing" aria-label="Slide 15: Closing">
+  <div class="slide-content">
+    <span class="slide-no" aria-hidden="true">15</span>
+    <span class="kicker reveal">Part 2 &middot; The End</span>
+    <h1 class="reveal">Thank you.<br>Questions?</h1>
+    <p class="recap reveal">Recap: <span class="num">R&#8320; &asymp; 2.35</span> &rarr; with <span class="num">&nu; = 0.65</span>, <span class="num">R<sub>eff</sub> &asymp; 0.31 &lt; 1</span>.</p>
+    <p class="foot reveal">李傳漢 (Chuan-Han Li) &middot; B11611027 &nbsp;&mdash;&nbsp; BME5113 Biological Systems Modeling &amp; Analysis &middot; Term Project, Part 2</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ============================================================
+   PRESENTATION CONTROLLER
+   Keyboard, wheel, touch/swipe nav + progress + dots + reveal.
+   All scrolling uses native CSS scroll-snap; JS scrolls slides
+   into view rather than fighting the browser.
+   ============================================================ */
+(function(){
+  "use strict";
+
+  var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+  var total = slides.length;
+  var current = 0;
+  var progress = document.getElementById("progress");
+  var curNo = document.getElementById("curNo");
+  var dotsWrap = document.getElementById("navDots");
+
+  var prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---- Build nav dots ---- */
+  slides.forEach(function(s, i){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", "Go to slide " + (i + 1));
+    b.addEventListener("click", function(){ goTo(i); });
+    dotsWrap.appendChild(b);
+  });
+  var dots = Array.prototype.slice.call(dotsWrap.children);
+
+  function pad(n){ return (n < 10 ? "0" : "") + n; }
+
+  /* ---- Update chrome (progress bar, index, dot state) ---- */
+  function updateChrome(idx){
+    current = idx;
+    var pct = total > 1 ? (idx / (total - 1)) * 100 : 100;
+    progress.style.width = pct + "%";
+    curNo.textContent = pad(idx + 1);
+    dots.forEach(function(d, i){
+      d.setAttribute("aria-current", i === idx ? "true" : "false");
+    });
+  }
+
+  /* ---- Navigate to a slide ---- */
+  function goTo(idx){
+    if(idx < 0) idx = 0;
+    if(idx > total - 1) idx = total - 1;
+    slides[idx].scrollIntoView({ behavior: prefersReduced ? "auto" : "smooth" });
+    updateChrome(idx);
+  }
+  function next(){ goTo(current + 1); }
+  function prev(){ goTo(current - 1); }
+
+  /* ---- IntersectionObserver: track active slide + trigger reveals ---- */
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      var idx = slides.indexOf(e.target);
+      if(e.isIntersecting && e.intersectionRatio >= 0.5){
+        e.target.classList.add("in-view");
+        updateChrome(idx);
+      }
+    });
+  }, { threshold: [0.5] });
+  slides.forEach(function(s){ io.observe(s); });
+
+  /* Reveal the first slide immediately (it is already in view on load) */
+  if(slides[0]) slides[0].classList.add("in-view");
+
+  /* ---- Keyboard navigation ---- */
+  document.addEventListener("keydown", function(e){
+    switch(e.key){
+      case "ArrowRight":
+      case "ArrowDown":
+      case "PageDown":
+      case " ":
+        e.preventDefault(); next(); break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault(); prev(); break;
+      case "Home":
+        e.preventDefault(); goTo(0); break;
+      case "End":
+        e.preventDefault(); goTo(total - 1); break;
+    }
+  });
+
+  /* ---- Wheel navigation (debounced; one slide per gesture) ---- */
+  var wheelLock = false;
+  window.addEventListener("wheel", function(e){
+    if(wheelLock) return;
+    if(Math.abs(e.deltaY) < 8) return;
+    wheelLock = true;
+    if(e.deltaY > 0) next(); else prev();
+    setTimeout(function(){ wheelLock = false; }, 650);
+  }, { passive: true });
+
+  /* ---- Touch / swipe navigation ---- */
+  var touchStartY = null, touchStartX = null;
+  window.addEventListener("touchstart", function(e){
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+  }, { passive: true });
+  window.addEventListener("touchend", function(e){
+    if(touchStartY === null) return;
+    var dy = e.changedTouches[0].clientY - touchStartY;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    var THRESHOLD = 45;
+    /* Vertical swipe dominates; horizontal as secondary */
+    if(Math.abs(dy) > Math.abs(dx)){
+      if(dy < -THRESHOLD) next();
+      else if(dy > THRESHOLD) prev();
+    } else {
+      if(dx < -THRESHOLD) next();
+      else if(dx > THRESHOLD) prev();
+    }
+    touchStartY = touchStartX = null;
+  }, { passive: true });
+
+  updateChrome(0);
+})();
+</script>
+</body>
+</html>
