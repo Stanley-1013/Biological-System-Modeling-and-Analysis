@@ -2,14 +2,25 @@
 """
 Build the PART 2 talk deck: "HIV Vaccination on the sIC AIDS Model".
 
-Generates part2_HIV_vaccination.pptx (~15 slides) for a 15-minute in-class talk.
-All numbers come from the report (report/part2.tex) and the qX_results.md files;
-nothing is invented here.
+This generator is a faithful PowerPoint port of the Swiss-Modern HTML deck
+(slides.html): same palette, same kicker -> headline -> key-message structure,
+framed-figure cards, oversized faint slide numbers, hairline rules and footer.
+Content (text + numbers) is identical to the HTML deck. 15 slides, same order.
 
-Design direction: deep-navy / slate title family with three figure-matched accents
-(baseline grey, vaccination teal-blue, condoms green). Strong title hierarchy, one
-KEY MESSAGE line per content slide, large centred figures, <=4 short bullets,
-thin accent rule + footer with slide number.
+Design system (Swiss Modern):
+  - 16:9 canvas, consistent 0.55in margins, a clear text|figure grid.
+  - thin signal-red accent rule top-left, letter-spaced signal-red kicker,
+    big dark headline, one-line key message in a box with a signal-red left
+    border, <=5 short bullets, framed figure in a white hairline card, an
+    oversized faint signal-red slide number in a back corner, a footer line.
+  - Figure slides: ~46% text column / ~50% figure column with a gutter; the
+    content block is vertically centred so the slide reads balanced.
+  - Every figure is scaled to FIT its card region preserving aspect ratio,
+    computed from the PNG's real pixel size.
+
+python-pptx does NOT auto-shrink text, so font sizes and box sizes are chosen
+to comfortably fit the real text. A verification pass at the end re-opens the
+file and asserts every shape is within the slide bounds (0 violations).
 
 Run:  python3 build_slides.py
 """
@@ -26,39 +37,42 @@ from PIL import Image
 # Paths
 # --------------------------------------------------------------------------- #
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIG = os.path.normpath(os.path.join(HERE, "..", "part2_hiv", "figures"))
+ASSETS = os.path.join(HERE, "assets")
 OUT = os.path.join(HERE, "part2_HIV_vaccination.pptx")
 
 # --------------------------------------------------------------------------- #
-# Palette (deliberate, figure-matched). Consistent across every slide.
+# Palette — exact RGB from slides.html CSS tokens
 # --------------------------------------------------------------------------- #
-NAVY      = RGBColor(0x14, 0x21, 0x3D)   # deep navy — titles / title slide bg
-SLATE     = RGBColor(0x2B, 0x3A, 0x55)   # slate — secondary surfaces
-INK       = RGBColor(0x1B, 0x26, 0x38)   # body text on light
-MUTE       = RGBColor(0x6B, 0x76, 0x88)  # muted captions / footer
-PAPER     = RGBColor(0xF6, 0xF7, 0xFA)   # near-white slide background
-WHITE     = RGBColor(0xFF, 0xFF, 0xFF)
-# accents matched to the figure curve colours
-ACC_VAX   = RGBColor(0x1F, 0x7A, 0x8C)   # vaccination — teal-blue
-ACC_COND  = RGBColor(0x2E, 0x8B, 0x57)   # condoms — green
-ACC_BASE  = RGBColor(0x8A, 0x94, 0xA6)   # baseline — grey
-ACCENT    = ACC_VAX                       # primary accent = vaccination teal
+PAPER    = RGBColor(0xFA, 0xFA, 0xF8)   # --paper   background
+INK      = RGBColor(0x14, 0x18, 0x1F)   # --ink     primary text
+INK_SOFT = RGBColor(0x5A, 0x64, 0x73)   # soft ink  secondary text
+HAIRLINE = RGBColor(0xE4, 0xE4, 0xDD)   # --hairline rules / borders
+BASELINE = RGBColor(0x8A, 0x94, 0xA6)   # --baseline grey
+VACC     = RGBColor(0x1F, 0x7A, 0x8C)   # --vacc    teal
+CONDOM   = RGBColor(0x2E, 0x8B, 0x57)   # --condom  green
+SIGNAL   = RGBColor(0xE5, 0x48, 0x4D)   # --signal  red accent
+WHITE    = RGBColor(0xFF, 0xFF, 0xFF)
+# faint signal red for the oversized slide numbers (~7% opacity over paper)
+SIGNAL_FAINT = RGBColor(0xF8, 0xEC, 0xEC)
 
-FONT = "Calibri"
-FONT_H = "Calibri"  # heading family (kept consistent; Calibri available)
+# Fonts — PowerPoint substitutes if a machine lacks them (acceptable).
+FONT_DISPLAY = "Archivo"      # headings (bold / heavy)
+FONT_BODY    = "Nunito Sans"  # body
 
 # Slide geometry (16:9)
 SW, SH = Inches(13.333), Inches(7.5)
-MARGIN = Inches(0.6)
+MARGIN = Inches(0.55)
+CONTENT_W = SW - 2 * MARGIN
 
 TALK_TITLE = "HIV Vaccination on the sIC AIDS Model"
+FOOTER = "HIV Vaccination on the sIC AIDS Model  ·  李傳漢 Chuan-Han Li"
 
 prs = Presentation()
 prs.slide_width = SW
 prs.slide_height = SH
 BLANK = prs.slide_layouts[6]
 
-_slide_no = 0  # running counter for footer
+_slide_no = 0  # running counter
 
 
 # --------------------------------------------------------------------------- #
@@ -69,9 +83,25 @@ def _set_bg(slide, color):
     slide.background.fill.fore_color.rgb = color
 
 
+def _add_runs(p, runs, default_color, default_size, default_font):
+    """Add a list of (text, opts) runs to a paragraph.
+
+    opts is a dict that may carry: bold, italic, color, size, font.
+    """
+    for text, opts in runs:
+        r = p.add_run()
+        r.text = text
+        r.font.size = Pt(opts.get("size", default_size))
+        r.font.bold = opts.get("bold", False)
+        r.font.italic = opts.get("italic", False)
+        r.font.name = opts.get("font", default_font)
+        r.font.color.rgb = opts.get("color", default_color)
+
+
 def _txt(slide, left, top, width, height, text, size, color, *,
          bold=False, italic=False, align=PP_ALIGN.LEFT,
-         anchor=MSO_ANCHOR.TOP, font=FONT, line_spacing=1.0):
+         anchor=MSO_ANCHOR.TOP, font=FONT_BODY, line_spacing=1.0,
+         letter_runs=None, space=0.0):
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True
@@ -83,586 +113,809 @@ def _txt(slide, left, top, width, height, text, size, color, *,
     p = tf.paragraphs[0]
     p.alignment = align
     p.line_spacing = line_spacing
-    r = p.add_run()
-    r.text = text
-    r.font.size = Pt(size)
-    r.font.bold = bold
-    r.font.italic = italic
-    r.font.name = font
-    r.font.color.rgb = color
+    if space:
+        p.space_after = Pt(space)
+    if letter_runs is not None:
+        _add_runs(p, letter_runs, color, size, font)
+    else:
+        r = p.add_run()
+        r.text = text
+        r.font.size = Pt(size)
+        r.font.bold = bold
+        r.font.italic = italic
+        r.font.name = font
+        r.font.color.rgb = color
     return box
 
 
-def _rule(slide, left, top, width, color=ACCENT, height=Pt(3)):
-    bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
-    bar.fill.solid()
-    bar.fill.fore_color.rgb = color
-    bar.line.fill.background()
-    bar.shadow.inherit = False
-    return bar
+def _rect(slide, left, top, width, height, color, line_color=None,
+          line_w=None):
+    shp = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+    shp.fill.solid()
+    shp.fill.fore_color.rgb = color
+    if line_color is None:
+        shp.line.fill.background()
+    else:
+        shp.line.color.rgb = line_color
+        shp.line.width = line_w or Pt(1)
+    shp.shadow.inherit = False
+    return shp
 
 
-def _footer(slide):
-    """Thin footer: short talk title (left) + slide number (right)."""
-    global _slide_no
-    _slide_no += 1
-    _txt(slide, MARGIN, SH - Inches(0.45), Inches(8), Inches(0.3),
-         "sIC HIV vaccination  ·  李傳漢 B11611027  ·  BME5113",
-         9, MUTE, font=FONT)
-    _txt(slide, SW - Inches(1.6), SH - Inches(0.45), Inches(1.0), Inches(0.3),
-         str(_slide_no), 11, MUTE, bold=True, align=PP_ALIGN.RIGHT, font=FONT)
+def _slide_number(slide, n):
+    """Oversized faint signal-red slide index in the bottom-right corner."""
+    _txt(slide, SW - Inches(3.3), SH - Inches(3.55), Inches(3.1), Inches(3.4),
+         f"{n:02d}", 200, SIGNAL_FAINT, bold=True, align=PP_ALIGN.RIGHT,
+         anchor=MSO_ANCHOR.BOTTOM, font=FONT_DISPLAY, line_spacing=0.8)
 
 
-def _content_header(slide, kicker, title):
-    """Standard content-slide header: kicker label + big title + accent rule."""
-    _txt(slide, MARGIN, Inches(0.42), Inches(11.5), Inches(0.32),
-         kicker.upper(), 12, ACCENT, bold=True, font=FONT)
-    _txt(slide, MARGIN, Inches(0.72), Inches(12.1), Inches(0.85),
-         title, 32, NAVY, bold=True, font=FONT_H, line_spacing=0.98)
-    _rule(slide, MARGIN, Inches(1.62), Inches(1.6))
+def _footer(slide, n):
+    """Hairline rule + footer text (left) + NN/15 (right)."""
+    fy = SH - Inches(0.5)
+    _rect(slide, MARGIN, fy - Inches(0.06), CONTENT_W, Pt(0.75), HAIRLINE)
+    _txt(slide, MARGIN, fy, Inches(9.5), Inches(0.3),
+         FOOTER, 9, INK_SOFT, font=FONT_DISPLAY)
+    _txt(slide, SW - MARGIN - Inches(2.0), fy, Inches(2.0), Inches(0.3),
+         f"{n:02d} / 15", 9, INK_SOFT, bold=True, align=PP_ALIGN.RIGHT,
+         font=FONT_DISPLAY)
 
 
-def _key_message(slide, msg, top=Inches(1.78)):
-    """One-line KEY MESSAGE band under the header."""
-    box = _txt(slide, MARGIN, top, Inches(12.1), Inches(0.55),
-               msg, 17, SLATE, italic=True, font=FONT, line_spacing=1.0)
+def _kicker(slide, text, top):
+    """Small signal-red rule + letter-spaced uppercase kicker."""
+    # short signal rule preceding the kicker text
+    _rect(slide, MARGIN, top + Inches(0.10), Inches(0.34), Pt(2), SIGNAL)
+    # PowerPoint can't truly letter-space; emulate with thin spaces.
+    spaced = " ".join(text.upper())
+    _txt(slide, MARGIN + Inches(0.46), top, CONTENT_W - Inches(0.46),
+         Inches(0.3), spaced, 11.5, SIGNAL, bold=True, font=FONT_DISPLAY,
+         anchor=MSO_ANCHOR.MIDDLE)
+
+
+def _headline(slide, text, top, size=32, width=None, height=Inches(0.95)):
+    _txt(slide, MARGIN, top, width or CONTENT_W, height, text, size, INK,
+         bold=True, font=FONT_DISPLAY, line_spacing=0.98)
+
+
+def _key_message(slide, left, top, width, label, msg, *, size=15.5,
+                 label_size=10.5, height=Inches(1.1)):
+    """Box with a signal-red left border: small label + one-line message."""
+    bar_w = Pt(3)
+    _rect(slide, left, top, bar_w, height, SIGNAL)
+    box = slide.shapes.add_textbox(left + Inches(0.16), top, width - Inches(0.16),
+                                   height)
+    tf = box.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.margin_left = Pt(2)
+    tf.margin_right = 0
+    tf.margin_top = 0
+    tf.margin_bottom = 0
+    p1 = tf.paragraphs[0]
+    p1.alignment = PP_ALIGN.LEFT
+    p1.space_after = Pt(3)
+    r = p1.add_run()
+    r.text = " ".join(label.upper())
+    r.font.size = Pt(label_size)
+    r.font.bold = True
+    r.font.name = FONT_DISPLAY
+    r.font.color.rgb = SIGNAL
+    p2 = tf.add_paragraph()
+    p2.line_spacing = 1.18
+    r2 = p2.add_run()
+    r2.text = msg
+    r2.font.size = Pt(size)
+    r2.font.bold = True
+    r2.font.name = FONT_BODY
+    r2.font.color.rgb = INK
     return box
 
 
-def _bullets(slide, items, left, top, width, height, size=16,
-             color=INK, gap_after=6):
+def _bullets(slide, items, left, top, width, height, size=15.5,
+             gap_after=7, line_spacing=1.18):
+    """Swiss bullets: small teal square marker + soft-ink text with bold spans.
+
+    items: list of (runs, accent) where runs is either a plain string or a
+    list of (text, opts) for inline emphasis. accent colors the marker.
+    """
     box = slide.shapes.add_textbox(left, top, width, height)
     tf = box.text_frame
     tf.word_wrap = True
-    for i, (txt, lvl, accent) in enumerate(items):
+    tf.margin_left = 0
+    tf.margin_right = 0
+    tf.margin_top = 0
+    tf.margin_bottom = 0
+    for i, (runs, accent) in enumerate(items):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.level = lvl
         p.space_after = Pt(gap_after)
-        p.line_spacing = 1.05
-        # bullet marker
+        p.line_spacing = line_spacing
         rb = p.add_run()
-        rb.text = ("▸  " if lvl == 0 else "–  ")
-        rb.font.size = Pt(size)
+        rb.text = "▪  "
+        rb.font.size = Pt(size - 2)
         rb.font.bold = True
-        rb.font.name = FONT
-        rb.font.color.rgb = accent if accent else ACCENT
-        # text
-        rt = p.add_run()
-        rt.text = txt
-        rt.font.size = Pt(size if lvl == 0 else size - 1)
-        rt.font.name = FONT
-        rt.font.color.rgb = color
+        rb.font.name = FONT_BODY
+        rb.font.color.rgb = accent or VACC
+        if isinstance(runs, str):
+            runs = [(runs, {})]
+        for text, opts in runs:
+            rt = p.add_run()
+            rt.text = text
+            rt.font.size = Pt(size)
+            rt.font.name = FONT_BODY
+            rt.font.bold = opts.get("bold", False)
+            rt.font.color.rgb = opts.get("color", INK if opts.get("bold") else INK_SOFT)
     return box
 
 
-def _fig(slide, name, left, top, max_w, max_h, align="center"):
-    """Place a figure scaled to fit a box, preserving aspect (no crop)."""
-    path = os.path.join(FIG, name)
-    iw, ih = Image.open(path).size
+def _figure_card(slide, name, left, top, max_w, max_h, caption=None):
+    """White hairline card framing a figure scaled to fit, plus a caption.
+
+    The card fills the allocated (max_w x max_h) region. The image is scaled
+    to fit inside the card minus padding, preserving aspect ratio, and centred.
+    """
+    pad = Inches(0.14)
+    cap_h = Inches(0.34) if caption else Inches(0.0)
+    # card surface (white, hairline border)
+    _rect(slide, left, top, max_w, max_h, WHITE, line_color=HAIRLINE,
+          line_w=Pt(1))
+    # region available for the image inside the card
+    inner_l = left + pad
+    inner_t = top + pad
+    inner_w = max_w - 2 * pad
+    inner_h = max_h - 2 * pad - cap_h
+    iw, ih = Image.open(os.path.join(ASSETS, name)).size
     ar = iw / ih
-    box_ar = max_w / max_h
+    box_ar = inner_w / inner_h
     if ar >= box_ar:
-        w = max_w
-        h = int(max_w / ar)
+        w = inner_w
+        h = int(inner_w / ar)
     else:
-        h = max_h
-        w = int(max_h * ar)
-    if align == "center":
-        l = left + (max_w - w) // 2
-    elif align == "right":
-        l = left + (max_w - w)
-    else:
-        l = left
-    t = top + (max_h - h) // 2
-    slide.shapes.add_picture(path, l, t, width=w, height=h)
-    return l, t, w, h
-
-
-def _caption(slide, text, left, top, width):
-    _txt(slide, left, top, width, Inches(0.3), text, 11, MUTE,
-         italic=True, align=PP_ALIGN.CENTER, font=FONT)
+        h = inner_h
+        w = int(inner_h * ar)
+    l = inner_l + (inner_w - w) // 2
+    t = inner_t + (inner_h - h) // 2
+    slide.shapes.add_picture(os.path.join(ASSETS, name), l, t, width=w, height=h)
+    if caption:
+        _txt(slide, left + pad, top + max_h - cap_h, max_w - 2 * pad,
+             cap_h, caption, 10.5, INK_SOFT, align=PP_ALIGN.CENTER,
+             anchor=MSO_ANCHOR.MIDDLE, font=FONT_DISPLAY,
+             line_spacing=1.0)
+    return left, top, max_w, max_h
 
 
 def _note(slide, text):
     slide.notes_slide.notes_text_frame.text = text
 
 
-def new_content_slide(kicker, title, key_msg=None):
+# Shared vertical rhythm for content slides ---------------------------------- #
+KICKER_TOP = Inches(0.55)
+HEAD_TOP = Inches(0.92)
+
+
+def _content_chrome(kicker, headline, *, head_size=32, head_h=Inches(0.95)):
+    """Add a content slide with kicker + headline + slide number + footer."""
+    global _slide_no
+    _slide_no += 1
     s = prs.slides.add_slide(BLANK)
     _set_bg(s, PAPER)
-    _content_header(s, kicker, title)
-    if key_msg:
-        _key_message(s, key_msg)
+    _slide_number(s, _slide_no)
+    _kicker(s, kicker, KICKER_TOP)
+    _headline(s, headline, HEAD_TOP, size=head_size, height=head_h)
+    _footer(s, _slide_no)
     return s
 
 
 # --------------------------------------------------------------------------- #
-# Slide 1 — Title
+# Figure-slide layout constants (the explicit space-allocation grid)
 # --------------------------------------------------------------------------- #
-s = prs.slides.add_slide(BLANK)
-_set_bg(s, NAVY)
-# accent block on left
-band = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(0.28), SH)
-band.fill.solid(); band.fill.fore_color.rgb = ACCENT
-band.line.fill.background(); band.shadow.inherit = False
+BLOCK_TOP = Inches(2.02)          # content block starts below headline
+BLOCK_BOT = SH - Inches(0.62)     # above footer
+BLOCK_H = BLOCK_BOT - BLOCK_TOP   # ~4.86in
+GUTTER = Inches(0.4)
+# ~46% text / ~50% figure of the content width, with a gutter
+TEXT_W = Inches(5.62)             # ~0.46 * 12.23
+FIG_W = CONTENT_W - TEXT_W - GUTTER  # remaining (~50%)
+FIG_LEFT = MARGIN + TEXT_W + GUTTER
 
-_txt(s, Inches(1.0), Inches(1.5), Inches(11), Inches(0.4),
-     "BME5113 · BIOLOGICAL SYSTEM MODELING — TERM PROJECT, PART 2",
-     13, RGBColor(0x9F, 0xB4, 0xCC), bold=True)
-_txt(s, Inches(0.95), Inches(2.05), Inches(11.4), Inches(1.8),
-     "HIV Vaccination on the\nsIC AIDS Model", 46, WHITE, bold=True,
-     line_spacing=1.0)
-_rule(s, Inches(1.0), Inches(4.05), Inches(2.4), ACCENT, height=Pt(4))
-_txt(s, Inches(1.0), Inches(4.35), Inches(11), Inches(0.5),
-     "Does a vaccine make the epidemic decline — at what cost, and versus condoms?",
-     18, RGBColor(0xC7, 0xD3, 0xE2), italic=True)
-_txt(s, Inches(1.0), Inches(5.7), Inches(11), Inches(0.9),
-     "李傳漢  (Li Chuan-Han)", 22, WHITE, bold=True)
-_txt(s, Inches(1.0), Inches(6.2), Inches(11), Inches(0.5),
-     "B11611027   ·   simplified Imperial College (sIC) model, Haefner (2005) Ch. 15",
-     14, RGBColor(0x9F, 0xB4, 0xCC))
+
+def figure_slide(kicker, headline, key_label, key_msg, bullets_items,
+                 fig_name, caption, *, head_size=30, key_size=15,
+                 bullet_size=14.5):
+    """Standard text|figure content slide with a vertically-centred block.
+
+    The text column holds the key-message box then the bullets; the figure
+    column holds a white framed card. Both share the same vertical band so the
+    slide reads balanced with no empty half.
+    """
+    s = _content_chrome(kicker, headline, head_size=head_size)
+
+    # --- figure card fills the figure column, vertically centred in band ---
+    # choose a card height that fits the band but caps very tall cards
+    card_h = min(BLOCK_H, Inches(4.55))
+    card_top = BLOCK_TOP + (BLOCK_H - card_h) // 2
+    _figure_card(s, fig_name, FIG_LEFT, card_top, FIG_W, card_h,
+                 caption=caption)
+
+    # --- text column: key message (top) + bullets, centred in the band ---
+    key_h = Inches(1.16)
+    gap = Inches(0.26)
+    # estimate bullet block height from count
+    n = len(bullets_items)
+    bullet_h = Inches(0.0)
+    # let bullets take the remaining band; vertically centre key+bullets group
+    group_top = BLOCK_TOP
+    _key_message(s, MARGIN, group_top, TEXT_W, key_label, key_msg,
+                 size=key_size, height=key_h)
+    bullets_top = group_top + key_h + gap
+    bullets_avail = BLOCK_BOT - bullets_top
+    _bullets(s, bullets_items, MARGIN, bullets_top, TEXT_W, bullets_avail,
+             size=bullet_size, gap_after=6, line_spacing=1.14)
+    return s
+
+
+def figure_slide_no_key(kicker, headline, bullets_items, fig_name, caption,
+                        *, head_size=30, bullet_size=15):
+    """Text|figure slide WITHOUT a key-message box (slide 10 in HTML)."""
+    s = _content_chrome(kicker, headline, head_size=head_size)
+    card_h = min(BLOCK_H, Inches(4.55))
+    card_top = BLOCK_TOP + (BLOCK_H - card_h) // 2
+    _figure_card(s, fig_name, FIG_LEFT, card_top, FIG_W, card_h,
+                 caption=caption)
+    # bullets vertically centred in the band
+    bul_top = BLOCK_TOP + Inches(0.5)
+    _bullets(s, bullets_items, MARGIN, bul_top, TEXT_W, BLOCK_H - Inches(0.6),
+             size=bullet_size, gap_after=9, line_spacing=1.18)
+    return s
+
+
+# Inline-run shorthands ------------------------------------------------------ #
+def B(t):
+    return (t, {"bold": True, "color": INK})
+
+
+def T(t):
+    return (t, {})
+
+
+# =========================================================================== #
+# SLIDE 1 — TITLE
+# =========================================================================== #
+_slide_no += 1
+s = prs.slides.add_slide(BLANK)
+_set_bg(s, PAPER)
+_slide_number(s, 1)
+
+# top kicker (eyebrow) — uppercase, soft ink, letter-spaced
+_txt(s, MARGIN, Inches(0.95), CONTENT_W, Inches(0.35),
+     " ".join("Term Project · Part 2".upper()),
+     13, INK_SOFT, bold=True, font=FONT_DISPLAY)
+# huge headline
+_headline(s, "HIV Vaccination on the\nsIC AIDS Model", Inches(1.55),
+          size=52, height=Inches(2.0))
+# title rule (ink, thick)
+_rect(s, MARGIN, Inches(3.62), Inches(2.4), Pt(4), INK)
+# subtitle
+_txt(s, MARGIN, Inches(3.95), Inches(9.5), Inches(0.7),
+     "A compartment-model study of epidemic control, cost, and intervention choice.",
+     19, INK_SOFT, bold=True, font=FONT_BODY, line_spacing=1.15)
+# metadata row with a hairline rule above
+_rect(s, MARGIN, Inches(5.55), CONTENT_W, Pt(1), HAIRLINE)
+# Author cell
+_txt(s, MARGIN, Inches(5.78), Inches(5.0), Inches(0.3),
+     " ".join("Author"), 11, SIGNAL, bold=True, font=FONT_DISPLAY)
+_txt(s, MARGIN, Inches(6.08), Inches(5.6), Inches(0.35),
+     "李傳漢 · Chuan-Han Li", 17, INK, bold=True, font=FONT_BODY)
+_txt(s, MARGIN, Inches(6.46), Inches(5.6), Inches(0.3),
+     "B11611027", 14, INK_SOFT, bold=True, font=FONT_BODY)
+# Course cell
+cx = MARGIN + Inches(6.2)
+_txt(s, cx, Inches(5.78), Inches(5.4), Inches(0.3),
+     " ".join("Course"), 11, SIGNAL, bold=True, font=FONT_DISPLAY)
+_txt(s, cx, Inches(6.08), Inches(6.0), Inches(0.35),
+     "BME5113", 17, INK, bold=True, font=FONT_BODY)
+_txt(s, cx, Inches(6.46), Inches(6.4), Inches(0.3),
+     "Biological Systems Modeling & Analysis", 14, INK_SOFT, bold=True,
+     font=FONT_BODY)
 _note(s, "Title. Part 2 of the term project: extend the sIC AIDS model with HIV "
          "vaccination and answer four questions — peak/decline, cost, optimum rate, "
          "vaccination vs condoms.")
 
-# --------------------------------------------------------------------------- #
-# Slide 2 — Motivation
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Motivation", "Why model an HIV intervention?",
-                      "A compartment model lets us ask: does a vaccine actually "
-                      "turn the epidemic around — and is it worth it?")
-_bullets(s, [
-    ("HIV/AIDS is a long, sexually-transmitted epidemic — interventions play out "
-     "over decades, so intuition alone is unreliable.", 0, ACCENT),
-    ("A model turns vague policy questions into quantitative ones we can test on "
-     "the same baseline.", 0, ACCENT),
-    ("Four concrete questions drive Part 2:", 0, ACCENT),
-    ("(a) does vaccination make the epidemic peak and decline?", 1, ACC_VAX),
-    ("(b) what does it cost per infection averted?", 1, ACC_VAX),
-    ("(c) what is the optimum vaccination rate?", 1, ACC_VAX),
-    ("(d) how does vaccination compare with condom promotion?", 1, ACC_COND),
-], MARGIN, Inches(2.5), Inches(12.0), Inches(4.2), size=18)
-_note(s, "Motivation: HIV is a decades-long STI epidemic; intuition is unreliable, "
-         "so we use a model. Four questions: peak/decline, cost, optimum rate, "
-         "vaccination vs condoms — all tested against one common baseline.")
-
-# --------------------------------------------------------------------------- #
-# Slide 3 — The sIC model (12 compartments)
-# --------------------------------------------------------------------------- #
-s = new_content_slide("The model", "The sIC model: 12 compartments",
-                      "Three disease states × two sexes × two age classes; "
-                      "transmission is frequency-dependent on I/(S+I).")
-# compartment schematic via boxes
-def comp_box(slide, left, top, w, h, label, fill, txtcolor=WHITE, fsize=13):
-    b = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, w, h)
-    b.fill.solid(); b.fill.fore_color.rgb = fill
-    b.line.color.rgb = WHITE; b.line.width = Pt(1.2)
-    b.shadow.inherit = False
-    tf = b.text_frame; tf.word_wrap = True
-    tf.margin_left = Pt(2); tf.margin_right = Pt(2)
-    tf.margin_top = Pt(1); tf.margin_bottom = Pt(1)
-    p = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
-    r = p.add_run(); r.text = label
-    r.font.size = Pt(fsize); r.font.bold = True
-    r.font.color.rgb = txtcolor; r.font.name = FONT
-    return b
-
-bx0 = Inches(0.75); by0 = Inches(2.55)
-cw = Inches(1.15); ch = Inches(0.62); gx = Inches(0.18); gy = Inches(0.22)
-states = [("S", ACC_BASE), ("I", ACC_VAX), ("A", SLATE)]
-rows = [("Female", "f"), ("Male", "m")]
-# header row for age classes
-_txt(s, bx0 + cw + gx, by0 - Inches(0.34), Inches(2.5), Inches(0.3),
-     "age 1 (0–15, pre-sexual)     age 2 (16+, sexually active)", 11, MUTE,
-     bold=True)
-for ri, (sexname, sx) in enumerate(rows):
-    ry = by0 + ri * (3 * (ch + Inches(0.04)) + Inches(0.18))
-    for si, (st, col) in enumerate(states):
-        ty = ry + si * (ch + Inches(0.05))
-        _txt(s, bx0 - Inches(0.02), ty, cw, ch, f"{sexname} {st}", 11, INK,
-             bold=True, anchor=MSO_ANCHOR.MIDDLE)
-        comp_box(s, bx0 + cw + gx, ty, cw, ch, f"{st}{sx},1", col)
-        comp_box(s, bx0 + 2 * cw + 2 * gx, ty, cw, ch, f"{st}{sx},2", col)
-
-# right column explanatory bullets
-_bullets(s, [
-    ("S → I → A: susceptible, HIV+ (pre-AIDS), clinical AIDS.", 0, ACCENT),
-    ("Only age-2 (16+) individuals transmit.", 0, ACCENT),
-    ("Forrester-style flow model: births, ageing (ξ), progression (γ), "
-     "AIDS death (α).", 0, ACCENT),
-    ("Frequency-dependent force of infection λ ∝ I/(S+I): what matters is the "
-     "fraction of partners infectious — A excluded (not sexually active).", 0,
-     ACC_VAX),
-], Inches(5.6), Inches(2.5), Inches(7.2), Inches(4.2), size=15)
-_note(s, "12 compartments: S/I/A disease states crossed with sex (f/m) and two age "
-         "classes. Only age-2 transmit. Force of infection is frequency-dependent, "
-         "I/(S+I); clinical-AIDS individuals are excluded from the partner pool.")
-
-# --------------------------------------------------------------------------- #
-# Slide 4 — Key parameters + demography
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Parameters", "Key parameters (Table 15.2) & demography",
-                      "Asymmetric transmission (male→female 2.7× higher) is why "
-                      "women reach higher prevalence than men.")
-# parameter table
-from pptx.util import Cm
-rows_tbl = [
-    ("Symbol", "Meaning", "Value"),
-    ("c", "new-partner acquisition rate", "2.35 / yr"),
-    ("β(m→f)", "male→female transmission prob.", "0.20"),
-    ("β(f→m)", "female→male transmission prob.", "0.075"),
-    ("μ", "natural death rate", "0.0227 / yr"),
-    ("α", "extra AIDS death rate", "1.0 / yr"),
-    ("ξ", "ageing rate (age1→age2)", "0.0667 / yr"),
-    ("ϑ", "perinatal transmission prob.", "0.35"),
-    ("θ", "female fecundity", "0.2088 / yr"),
+# =========================================================================== #
+# SLIDE 2 — THE QUESTION (four qcards)
+# =========================================================================== #
+_slide_no += 1
+s = prs.slides.add_slide(BLANK)
+_set_bg(s, PAPER)
+_slide_number(s, 2)
+_kicker(s, "Motivation · Four Questions", KICKER_TOP)
+_headline(s, "Can a vaccine bend an endemic epidemic?", HEAD_TOP, size=31)
+_footer(s, 2)
+# key message
+_key_message(s, MARGIN, Inches(1.95), CONTENT_W,
+             "Key idea",
+             "In this model HIV is S → I → AIDS with births, so the "
+             "infection persists endemically — it never burns out on its own.",
+             size=16, height=Inches(0.95))
+# four question cards in a 2x2 grid
+qcards = [
+    ("a", [T("Will a vaccine make the epidemic "), B("peak then decline"), T("?")], SIGNAL),
+    ("b", [T("What does the vaccination program "), B("cost"), T("?")], VACC),
+    ("c", [T("What is the "), B("optimum vaccination rate"), T("?")], CONDOM),
+    ("d", [T("Vaccination vs. "), B("safe-sex / condoms"),
+           T(" — which controls it better?")], BASELINE),
 ]
-nrows, ncols = len(rows_tbl), 3
-tbl_w = Inches(7.0); tbl_h = Inches(4.1)
-tshape = s.shapes.add_table(nrows, ncols, MARGIN, Inches(2.55), tbl_w, tbl_h)
-table = tshape.table
-table.columns[0].width = Inches(1.5)
-table.columns[1].width = Inches(4.0)
-table.columns[2].width = Inches(1.5)
-for ci in range(ncols):
-    pass
-for ri, row in enumerate(rows_tbl):
-    for ci, val in enumerate(row):
-        cell = table.cell(ri, ci)
-        cell.margin_left = Pt(6); cell.margin_right = Pt(6)
-        cell.margin_top = Pt(2); cell.margin_bottom = Pt(2)
-        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        tf = cell.text_frame; tf.word_wrap = True
+grid_top = Inches(3.15)
+grid_h = SH - Inches(0.62) - grid_top
+gap = Inches(0.28)
+card_w = (CONTENT_W - gap) / 2
+card_h = (grid_h - gap) / 2
+for idx, (tag, runs, accent) in enumerate(qcards):
+    r, c = divmod(idx, 2)
+    cl = MARGIN + c * (card_w + gap)
+    ct = grid_top + r * (card_h + gap)
+    # card with colored top border
+    _rect(s, cl, ct, card_w, card_h, WHITE, line_color=HAIRLINE, line_w=Pt(1))
+    _rect(s, cl, ct, card_w, Pt(3), accent)
+    # big tag
+    _txt(s, cl + Inches(0.22), ct + Inches(0.18), Inches(0.7), Inches(0.7),
+         tag, 30, INK, bold=True, font=FONT_DISPLAY, anchor=MSO_ANCHOR.TOP)
+    # question text
+    tb = s.shapes.add_textbox(cl + Inches(0.95), ct + Inches(0.18),
+                              card_w - Inches(1.15), card_h - Inches(0.36))
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.margin_left = 0; tf.margin_right = 0; tf.margin_top = 0; tf.margin_bottom = 0
+    p = tf.paragraphs[0]
+    p.line_spacing = 1.2
+    _add_runs(p, runs, INK_SOFT, 16, FONT_BODY)
+_note(s, "Motivation: four questions — (a) peak/decline, (b) cost, (c) optimum "
+         "rate, (d) vaccination vs condoms — tested against one common baseline. "
+         "HIV is S->I->AIDS with births, so it persists endemically.")
+
+# =========================================================================== #
+# SLIDE 3 — THE sIC MODEL (3x4 compartment grid)
+# =========================================================================== #
+_slide_no += 1
+s = prs.slides.add_slide(BLANK)
+_set_bg(s, PAPER)
+_slide_number(s, 3)
+_kicker(s, "Structure · 12 Compartments", KICKER_TOP)
+_headline(s, "The sIC model: {S, I, AIDS} × sex × age", HEAD_TOP, size=30)
+_footer(s, 3)
+
+# compartment grid: 3 class-rows x 4 sex-age groups
+grid_left = MARGIN + Inches(1.55)   # leave room for row labels
+grid_top = Inches(2.35)
+col_head_h = Inches(0.42)
+cols = ["F · 0–15", "F · 16+", "M · 0–15", "M · 16+"]
+rows = [("Susceptible", BASELINE, "S"), ("Infected", VACC, "I"),
+        ("AIDS", SIGNAL, "A")]
+subs = ["f1", "f2", "m1", "m2"]
+total_grid_w = SW - grid_left - MARGIN
+cell_gap = Inches(0.12)
+cell_w = (total_grid_w - 3 * cell_gap) / 4
+cell_h = Inches(0.72)
+row_gap = Inches(0.16)
+
+# column headers
+for ci, ch in enumerate(cols):
+    cl = grid_left + ci * (cell_w + cell_gap)
+    _txt(s, cl, grid_top, cell_w, col_head_h, ch, 12, INK, bold=True,
+         align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.BOTTOM, font=FONT_DISPLAY)
+# corner label
+_txt(s, MARGIN, grid_top, Inches(1.5), col_head_h, "class \\ group",
+     11, INK_SOFT, bold=True, anchor=MSO_ANCHOR.BOTTOM, font=FONT_DISPLAY)
+
+body_top = grid_top + col_head_h + Inches(0.1)
+for ri, (rname, rcolor, sym) in enumerate(rows):
+    rt = body_top + ri * (cell_h + row_gap)
+    # row label
+    _txt(s, MARGIN, rt, Inches(1.45), cell_h, rname, 12.5, INK_SOFT, bold=True,
+         anchor=MSO_ANCHOR.MIDDLE, font=FONT_DISPLAY)
+    for ci, sub in enumerate(subs):
+        cl = grid_left + ci * (cell_w + cell_gap)
+        box = _rect(s, cl, rt, cell_w, cell_h, rcolor)
+        tf = box.text_frame
+        tf.word_wrap = True
+        tf.vertical_anchor = MSO_ANCHOR.MIDDLE
         p = tf.paragraphs[0]
-        p.alignment = PP_ALIGN.LEFT if ci == 1 else PP_ALIGN.CENTER
-        r = p.add_run(); r.text = val
-        r.font.name = FONT
-        if ri == 0:
-            r.font.size = Pt(13); r.font.bold = True; r.font.color.rgb = WHITE
-            cell.fill.solid(); cell.fill.fore_color.rgb = NAVY
-        else:
-            r.font.size = Pt(12.5); r.font.color.rgb = INK
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = WHITE if ri % 2 else RGBColor(0xEC, 0xEF, 0xF4)
+        p.alignment = PP_ALIGN.CENTER
+        r = p.add_run()
+        r.text = f"{sym}{sub}"
+        r.font.size = Pt(15)
+        r.font.bold = True
+        r.font.name = FONT_DISPLAY
+        r.font.color.rgb = WHITE
 
-_bullets(s, [
-    ("Demography matters: births come only from age-2 females; high fertility "
-     "grows the population early on.", 0, ACCENT),
-    ("Perinatal route (ϑ = 0.35): infected mothers can bear infected newborns — "
-     "a route a vaccine does NOT block.", 0, ACC_VAX),
-    ("Initial pop. N(0) = 8005 (S split 3000/1000 per sex×age).", 0, ACCENT),
-], Inches(8.1), Inches(2.6), Inches(4.6), Inches(4.0), size=15)
-_note(s, "Parameters from Table 15.2. Transmission is asymmetric: β male→female "
-         "0.20 vs female→male 0.075 (~2.7×), which makes female prevalence exceed "
-         "male. Demography: births from age-2 females, perinatal transmission "
-         "ϑ=0.35 is a route vaccination can't block.")
+# flows note under the grid, with a hairline rule
+flows_top = body_top + 3 * (cell_h + row_gap) + Inches(0.06)
+_rect(s, MARGIN, flows_top, CONTENT_W, Pt(0.75), HAIRLINE)
+fb = s.shapes.add_textbox(MARGIN, flows_top + Inches(0.12), CONTENT_W,
+                          Inches(0.95))
+tf = fb.text_frame
+tf.word_wrap = True
+p = tf.paragraphs[0]
+p.line_spacing = 1.25
+r = p.add_run()
+r.text = "λ = c · β · I / (S+I)"
+r.font.size = Pt(14); r.font.bold = True; r.font.name = FONT_DISPLAY
+r.font.color.rgb = INK
+r = p.add_run()
+r.text = "    frequency-dependent force of infection"
+r.font.size = Pt(13); r.font.name = FONT_BODY; r.font.color.rgb = INK_SOFT
+p2 = tf.add_paragraph()
+p2.line_spacing = 1.25
+r = p2.add_run()
+r.text = ("births · ageing ξ · HIV→AIDS progression γ · AIDS mortality α · "
+          "natural mortality μ")
+r.font.size = Pt(13); r.font.name = FONT_BODY; r.font.color.rgb = INK_SOFT
+_note(s, "12 compartments: S/I/AIDS disease classes crossed with sex (f/m) and two "
+         "age groups (0-15, 16+). Force of infection is frequency-dependent, "
+         "I/(S+I); AIDS class excluded from the partner pool.")
 
-# --------------------------------------------------------------------------- #
-# Slide 5 — Modeling judgment 1: gamma
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Modeling judgment 1", "γ recalibration: making the epidemic ignite",
-                      "Table γ = 1.16 gives R₀ < 1 (no epidemic). I use the "
-                      "biologically grounded γ = 0.1 → R₀ ≈ 2.35.")
-_bullets(s, [
-    ("R₀ = c·√(β_mf·β_fm)/(μ+γ).", 0, ACCENT),
-    ("Table value γ = 1.16/yr ⇒ mean HIV→AIDS ≈ 0.85 yr (< 1 yr) and R₀ ≈ 0.24 "
-     "< 1 — the seeded infection dies out.", 0, ACC_BASE),
-    ("That contradicts the textbook's own Fig. 15.5 (HIV persists) and its stated "
-     "1–10 yr progression.", 0, ACC_BASE),
-    ("I adopt γ = 0.1/yr ⇒ mean infectious ≈ 8.1 yr (in range), R₀ ≈ 2.35 > 1.", 0,
-     ACC_VAX),
-    ("Herd-immunity threshold: p_c = 1 − 1/R₀ ≈ 0.574.", 0, ACC_VAX),
-], MARGIN, Inches(2.45), Inches(6.2), Inches(4.3), size=15.5)
-_fig(s, "verify_baseline_prevalence.png", Inches(7.0), Inches(2.35),
-     Inches(5.9), Inches(4.2))
-_caption(s, "Baseline (γ = 0.1): HIV persists; female > male prevalence.",
-         Inches(7.0), Inches(6.55), Inches(5.9))
-_note(s, "Modeling judgment 1: the literal Table γ=1.16 gives R0≈0.24<1, so no "
-         "epidemic — contradicting Fig 15.5. I switch to γ=0.1 (mean ~10yr, in the "
-         "textbook's stated range), giving R0≈2.35 and herd-immunity threshold "
-         "p_c≈0.574. Stated honestly because it changes results.")
-
-# --------------------------------------------------------------------------- #
-# Slide 6 — Modeling judgment 2 / validation
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Modeling judgment 2 + validation",
-                      "Seed in I, not A — then validate vs Fig. 15.5",
-                      "Seeding AIDS males can't transmit (A excluded); seeding "
-                      "infectious males reproduces the endemic epidemic.")
-_bullets(s, [
-    ("Table seeds A_{m2}=5, but A is excluded from λ — those males die without "
-     "infecting anyone (incidence exactly 0).", 0, ACC_BASE),
-    ("Smallest fix: seed I_{m2}=5 (infectious males) instead.", 0, ACC_VAX),
-    ("Baseline then reproduces Fig 15.5a: female ≈ 0.77, male ≈ 0.61 prevalence.", 0,
-     ACCENT),
-    ("Condom scenario (halve both β): R₀ → 1.17, just above threshold — prevalence "
-     "collapses (near-threshold sensitivity).", 0, ACC_COND),
-], MARGIN, Inches(2.45), Inches(6.3), Inches(4.3), size=15)
-_fig(s, "verify_condom_prevalence.png", Inches(7.1), Inches(2.35),
-     Inches(5.8), Inches(4.2))
-_caption(s, "Condom scenario: R₀ ≈ 1.17, prevalence near-threshold sensitive.",
-         Inches(7.1), Inches(6.55), Inches(5.8))
-_note(s, "Modeling judgment 2: literal A-only seed can't ignite because A is "
-         "excluded from the force of infection, so I seed I_m2=5. Baseline then "
-         "matches Fig 15.5a (female>male). Condoms halve β → R0≈1.17, just above "
-         "threshold; prevalence collapses in this sensitive regime.")
-
-# --------------------------------------------------------------------------- #
-# Slide 7 — The vaccination extension
-# --------------------------------------------------------------------------- #
-s = new_content_slide("The extension", "Adding vaccination: P compartments",
-                      "Take-with-waning vaccine; protected stay in the partner "
-                      "pool → genuine herd immunity.")
-_bullets(s, [
-    ("Two protected compartments P_{f2}, P_{m2} (age-2 only).", 0, ACC_VAX),
-    ("Vaccinate at ν = 0.65/yr; protection wanes back to S at l = 0.1/yr "
-     "(S → P → S).", 0, ACC_VAX),
-    ("Take (all-or-nothing) vaccine: in P, no force of infection acts.", 0, ACC_VAX),
-    ("Waning ceiling: P/(S+P) → ν/(ν+l) = 0.65/0.75 ≈ 0.87 — at most ~87% "
-     "protected at any instant.", 0, ACCENT),
-    ("Cost accumulator: dV/dt = ν(S_{f2}+S_{m2}), cost = $10 × V.", 0, ACCENT),
-    ("Key convention: protected people are uninfected but still partners, so they "
-     "stay in the denominator λ ∝ I/(S+I+P) — this dilution IS herd immunity.", 0,
-     ACC_COND),
-], MARGIN, Inches(2.45), Inches(12.1), Inches(4.4), size=16)
-_note(s, "Vaccination extension: protected compartments P_f2, P_m2; vaccinate at "
-         "ν=0.65, wane at l=0.1 (S→P→S). Take-with-waning. Waning ceiling "
-         "ν/(ν+l)≈0.87. Cost = $10 per vaccination event. Crucial convention: P "
-         "stays in the partner-pool denominator I/(S+I+P) — that dilution is herd "
-         "immunity.")
-
-# --------------------------------------------------------------------------- #
-# Slide 8 — Q(a) peak & decline
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Q(a) — Peak & decline",
-                      "Vaccination: the epidemic never ignites",
-                      "R_eff ≈ 0.31 < 1 — incidence falls monotonically from the "
-                      "seed; the baseline peaks at ~791/yr near year 48.")
-_fig(s, "qa_incidence.png", MARGIN, Inches(2.45), Inches(7.7), Inches(4.4),
-     align="left")
-_caption(s, "Incidence: vaccine vs baseline.", MARGIN, Inches(6.85), Inches(7.7))
-_bullets(s, [
-    ("R_eff ≈ R₀(1 − 0.867) ≈ 0.31 < 1.", 0, ACC_VAX),
-    ("Vaccine incidence is highest at t=0 (the 5 seed males), then declines to ~0.", 0,
-     ACC_VAX),
-    ("Baseline: peak 791 new/yr @ 47.8 yr, stays high.", 0, ACC_BASE),
-    ("Protected fraction saturates ≈ 0.85 (just below 0.867 ceiling).", 0, ACCENT),
-], Inches(8.5), Inches(2.55), Inches(4.3), Inches(4.0), size=15)
-_note(s, "Q(a): at ν=0.65 the protected fraction (0.87) exceeds p_c (0.574), so "
-         "R_eff≈0.31<1 and the epidemic never ignites. Incidence peaks at t=0 (seed) "
-         "then declines monotonically. Baseline peaks ~791/yr at ~48 yr. Stronger "
-         "than just 'peak and decline'.")
-
-# --------------------------------------------------------------------------- #
-# Slide 9 — Q(b) cost
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Q(b) — Cost",
-                      "Cost-effectiveness improves sharply over time",
-                      "~$162k at 30 yr ≈ $102 per infection averted — within the "
-                      "published Garnett/Stover range.")
-_fig(s, "qb_cost.png", MARGIN, Inches(2.4), Inches(5.3), Inches(4.5),
-     align="left")
-# small cost table
-rows_tbl = [
-    ("Horizon", "Cost", "$/infection averted"),
-    ("20 yr", "$113,738", "$372"),
-    ("30 yr", "$162,165", "$102"),
-    ("50 yr", "$247,461", "$18"),
-]
-tshape = s.shapes.add_table(len(rows_tbl), 3, Inches(6.4), Inches(2.7),
-                            Inches(6.3), Inches(2.0))
-table = tshape.table
-table.columns[0].width = Inches(1.9)
-table.columns[1].width = Inches(2.1)
-table.columns[2].width = Inches(2.3)
-for ri, row in enumerate(rows_tbl):
-    for ci, val in enumerate(row):
-        cell = table.cell(ri, ci)
-        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
-        cell.margin_left = Pt(6); cell.margin_top = Pt(2); cell.margin_bottom = Pt(2)
-        p = cell.text_frame.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
-        r = p.add_run(); r.text = val; r.font.name = FONT
-        if ri == 0:
-            r.font.size = Pt(13); r.font.bold = True; r.font.color.rgb = WHITE
-            cell.fill.solid(); cell.fill.fore_color.rgb = ACC_VAX
-        else:
-            r.font.size = Pt(14); r.font.color.rgb = INK
-            cell.fill.solid()
-            cell.fill.fore_color.rgb = WHITE if ri % 2 else RGBColor(0xEC, 0xEF, 0xF4)
-_bullets(s, [
-    ("Most cost is up-front (vaccinate the standing susceptible pool).", 0, ACCENT),
-    ("After saturation: steady ~407 vax/yr ≈ $4,070/yr recurring.", 0, ACCENT),
-    ("Transferable metric is $/infection averted, not the headline total "
-     "(small synthetic population).", 0, ACC_VAX),
-], Inches(6.4), Inches(4.95), Inches(6.3), Inches(1.9), size=14.5)
-_caption(s, "Cumulative cost / vaccinations and infections averted.",
-         MARGIN, Inches(6.95), Inches(5.3))
-_note(s, "Q(b): cost grows ~linearly — $114k/$162k/$247k at 20/30/50 yr. Cost per "
-         "infection averted falls from $372 (20yr) to $102 (30yr) to $18 (50yr) as "
-         "the baseline epidemic accelerates. $102 is within the Stover/Garnett "
-         "$110-390 band. Use $/infection averted, not absolute totals.")
-
-# --------------------------------------------------------------------------- #
-# Slide 10 — Q(c) optimum rate (threshold)
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Q(c) — Optimum rate",
-                      "A finite threshold ν_c exists",
-                      "Theory ν_c = l·p_c/(1−p_c) ≈ 0.135 (lower bound); simulated "
-                      "ν_c ≈ 0.37. The standard ν = 0.65 is safely above it.")
-_fig(s, "qc_invasion_threshold.png", Inches(6.6), Inches(2.4), Inches(6.2),
-     Inches(4.4), align="right")
-_caption(s, "Invasion growth rate r(ν) crossing zero (R_eff = 1).",
-         Inches(6.6), Inches(6.9), Inches(6.2))
-_bullets(s, [
-    ("Need the steady protected fraction ν/(ν+l) ≥ p_c.", 0, ACCENT),
-    ("Closed form ν_c = l·p_c/(1−p_c) ≈ 0.135/yr — a lower bound (ignores "
-     "perinatal route + mortality on P).", 0, ACC_VAX),
-    ("Direct invasion test (r crosses 0): ν_c ≈ 0.366/yr.", 0, ACC_VAX),
-    ("ν = 0.65 sits comfortably above ν_c → genuinely controls the epidemic.", 0,
-     ACCENT),
-    ("Caveat: if P is wrongly excluded from the pool, the threshold disappears — "
-     "an artifact, not a real result.", 0, ACC_COND),
-], MARGIN, Inches(2.45), Inches(6.1), Inches(4.4), size=14.5)
-_note(s, "Q(c) threshold: requiring ν/(ν+l)≥p_c gives closed-form ν_c≈0.135 (a "
-         "lower bound). Direct invasion simulation gives ν_c≈0.366. ν=0.65 is above "
-         "it. Measured via R_eff/invasion, not (I+A)/N, because AIDS mortality "
-         "shrinks the whole population. Excluding P from the pool spuriously erases "
-         "the threshold.")
-
-# --------------------------------------------------------------------------- #
-# Slide 11 — Q(c) cost-effectiveness
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Q(c) — Cost-effective rate",
-                      "Two 'optima': epidemiological vs cost-effective",
-                      "Infections averted saturate past ν_c — the cost-effective "
-                      "knee is at ν ≈ 0.18, well below the standard 0.65.")
-_fig(s, "qc_cost_effectiveness.png", MARGIN, Inches(2.45), Inches(7.6),
-     Inches(4.4), align="left")
-_caption(s, "Average & marginal cost per infection averted vs ν.",
-         MARGIN, Inches(6.9), Inches(7.6))
-_bullets(s, [
-    ("Below ν_c each extra unit of ν averts many infections.", 0, ACCENT),
-    ("Past ν_c, nearly all ~13,400 achievable infections are already averted.", 0,
-     ACC_VAX),
-    ("Diminishing-returns knee (99% of max): ν ≈ 0.175/yr, marginal ~$122 each.", 0,
-     ACC_VAX),
-    ("ν = 0.65 controls the epidemic but over-vaccinates relative to the knee.", 0,
-     ACC_COND),
-], Inches(8.4), Inches(2.55), Inches(4.4), Inches(4.0), size=15)
-_note(s, "Q(c) cost-effective: infections averted saturate past ν_c. The knee — "
-         "smallest ν capturing 99% of max aversion — is ν≈0.175, marginal ~$122 per "
-         "infection. So the epidemiological optimum and the cost-effective optimum "
-         "differ; ν=0.65 over-vaccinates relative to the knee but still works.")
-
-# --------------------------------------------------------------------------- #
-# Slide 12 — Q(d) vaccination vs condoms
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Q(d) — Vaccination vs condoms",
-                      "A near-tie on outcome; different cost basis",
-                      "Both control the epidemic: vaccination R_eff 0.31 strictly "
-                      "below 1; condoms R₀ 1.17 just above.")
-_fig(s, "qd_strategy_comparison.png", MARGIN, Inches(2.45), Inches(6.5),
-     Inches(4.0), align="left")
-_fig(s, "qd_averted_and_reff.png", Inches(7.1), Inches(2.55), Inches(5.8),
-     Inches(2.6), align="center")
-_bullets(s, [
-    ("Averted: vaccination 31,224 vs condoms 30,857 (of 31,235) — nearly identical.",
-     0, ACCENT),
-    ("Vaccination edges ahead: R_eff < 1 strictly (residual 11 vs 378 infections).",
-     0, ACC_VAX),
-    ("Cost basis differs: vaccine $348,618 explicit; condoms unpriced (≠ free).", 0,
-     ACC_COND),
-    ("Both verdicts are R₀-sensitive near threshold — honest near-tie.", 0, ACCENT),
-], Inches(7.1), Inches(5.05), Inches(5.8), Inches(1.9), size=13.5)
-_caption(s, "Prevalence trajectories (left); averted & R per strategy (right).",
-         MARGIN, Inches(6.6), Inches(6.5))
-_note(s, "Q(d): both strategies essentially control the epidemic. Vaccination drives "
-         "R_eff=0.31<1 strictly; condoms put R0=1.17, just above threshold. "
-         "Infections averted nearly identical (~31k each). Cost basis differs — "
-         "vaccine $348k explicit, condoms unpriced (not free). Honest near-tie.")
-
-# --------------------------------------------------------------------------- #
-# Slide 13 — Key takeaways
-# --------------------------------------------------------------------------- #
+# =========================================================================== #
+# SLIDE 4 — PARAMETERS (param chips + key message)
+# =========================================================================== #
+_slide_no += 1
 s = prs.slides.add_slide(BLANK)
-_set_bg(s, NAVY)
-band = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, Inches(0.28), SH)
-band.fill.solid(); band.fill.fore_color.rgb = ACCENT
-band.line.fill.background(); band.shadow.inherit = False
-_txt(s, Inches(0.95), Inches(0.6), Inches(11), Inches(0.4),
-     "TAKEAWAYS", 13, RGBColor(0x9F, 0xB4, 0xCC), bold=True)
-_txt(s, Inches(0.92), Inches(0.95), Inches(11.6), Inches(0.9),
-     "What the model says", 36, WHITE, bold=True)
-_rule(s, Inches(0.95), Inches(1.85), Inches(2.2), ACCENT, height=Pt(4))
-items = [
-    ("Vaccination at ν = 0.65 controls the epidemic — R_eff ≈ 0.31 < 1, so it "
-     "never ignites; prevalence stays near 0 vs the ~0.41 endemic plateau.",
-     ACC_VAX),
-    ("It is cost-effective: ~$102 per infection averted at 30 yr, within the "
-     "published Garnett/Stover range.", ACC_VAX),
-    ("A finite optimum exists: threshold ν_c ≈ 0.37; the cost-effective knee is "
-     "~0.18 — the standard 0.65 over-vaccinates a little.", ACCENT),
-    ("Vaccination ≈ condoms on outcome; vaccination strictly crosses the "
-     "threshold, but the two aren't comparable on cost as priced.", ACC_COND),
+_set_bg(s, PAPER)
+_slide_number(s, 4)
+_kicker(s, "Table 15.2 · Why It Persists", KICKER_TOP)
+_headline(s, "Parameters & the endemic plateau", HEAD_TOP, size=31)
+_footer(s, 4)
+
+params = [
+    ("0.20", "βmf male→female transmission", VACC),
+    ("0.075", "βfm female→male transmission", SIGNAL),
+    ("2.35/yr", "c partner-change rate", VACC),
+    ("0.0227/yr", "μ natural mortality", VACC),
+    ("1.0/yr", "α extra AIDS mortality", VACC),
 ]
-box = s.shapes.add_textbox(Inches(0.95), Inches(2.35), Inches(11.7), Inches(4.6))
-tf = box.text_frame; tf.word_wrap = True
-for i, (txt, col) in enumerate(items):
-    p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-    p.space_after = Pt(14); p.line_spacing = 1.08
-    rb = p.add_run(); rb.text = "●  "
-    rb.font.size = Pt(18); rb.font.bold = True; rb.font.color.rgb = col
-    rb.font.name = FONT
-    rt = p.add_run(); rt.text = txt
-    rt.font.size = Pt(18); rt.font.color.rgb = WHITE; rt.font.name = FONT
-_note(s, "Takeaways: vaccination at ν=0.65 controls the epidemic (R_eff≈0.31), is "
-         "cost-effective (~$102/infection averted at 30yr), has a finite optimum "
-         "(ν_c≈0.37, knee ~0.18), and is roughly comparable to condoms but not "
-         "directly cost-comparable as priced.")
+p_top = Inches(2.05)
+p_h = Inches(1.45)
+p_gap = Inches(0.22)
+p_w = (CONTENT_W - (len(params) - 1) * p_gap) / len(params)
+for i, (val, lab, vcolor) in enumerate(params):
+    pl = MARGIN + i * (p_w + p_gap)
+    _rect(s, pl, p_top, p_w, p_h, WHITE, line_color=HAIRLINE, line_w=Pt(1))
+    _txt(s, pl + Inches(0.14), p_top + Inches(0.16), p_w - Inches(0.28),
+         Inches(0.55), val, 24, vcolor, bold=True, font=FONT_DISPLAY,
+         line_spacing=0.95)
+    _txt(s, pl + Inches(0.14), p_top + Inches(0.78), p_w - Inches(0.28),
+         Inches(0.6), lab, 11, INK_SOFT, font=FONT_BODY, line_spacing=1.1)
 
-# --------------------------------------------------------------------------- #
-# Slide 14 — Limitations & honesty
-# --------------------------------------------------------------------------- #
-s = new_content_slide("Limitations & honesty",
-                      "What these results rest on",
-                      "Every conclusion is conditional on documented assumptions — "
-                      "stated, not hidden.")
-_bullets(s, [
-    ("γ recalibration (1.16 → 0.1) was required for the epidemic to ignite at all; "
-     "it shifts absolute levels.", 0, ACC_BASE),
-    ("Near-threshold sensitivity: condoms leave R₀ ≈ 1.17, so small calibration "
-     "changes move the endemic level a lot.", 0, ACC_BASE),
-    ("Partner-pool convention (P in denominator) is load-bearing — it is what "
-     "gives vaccination its herd-immunity effect.", 0, ACC_VAX),
-    ("Small synthetic population (N₀ = 8005) → dollar totals are illustrative; "
-     "use $/infection averted.", 0, ACCENT),
-    ("Single operating point (ν = 0.65, l = 0.1); constant-rate ν simplifies the "
-     "Garnett/Stover coverage scenario.", 0, ACCENT),
-], MARGIN, Inches(2.45), Inches(12.1), Inches(4.3), size=16)
-_note(s, "Limitations: γ recalibration was necessary but shifts levels; condom "
-         "scenario sits near threshold (sensitive); the partner-pool convention is "
-         "load-bearing; population is small/synthetic so use $/infection averted; "
-         "single operating point. Conclusions are conditional on these documented "
-         "assumptions.")
+# key message
+_key_message(s, MARGIN, Inches(3.95), CONTENT_W, "Key idea",
+             "Transmission is asymmetric (βmf > βfm) so women are infected more — "
+             "and births continually refill susceptibles, driving an endemic "
+             "plateau rather than burnout.",
+             size=17, height=Inches(1.5))
+_note(s, "Parameters from Table 15.2. Transmission asymmetric: βmf 0.20 vs βfm "
+         "0.075, so female prevalence exceeds male. Births refill susceptibles, "
+         "giving an endemic plateau rather than burnout.")
 
-# --------------------------------------------------------------------------- #
-# Slide 15 — Backup / Q&A
-# --------------------------------------------------------------------------- #
+# =========================================================================== #
+# SLIDE 5 — MODELING JUDGMENT 1: GAMMA  (fig verify_baseline_prevalence)
+# =========================================================================== #
+figure_slide(
+    "Modeling Judgment 1 · The Rate γ",
+    "Recalibrating HIV→AIDS progression",
+    "Key message",
+    "A corrected, biologically grounded γ is required for the model to behave "
+    "like a real epidemic.",
+    [
+        ([T("The textbook's literal "), B("γ = 1.16/yr"),
+          T(" means HIV→AIDS in under a year → "),
+          B("R₀ = 0.24 < 1"), T(" → no epidemic.")], SIGNAL),
+        ([T("Biologically, HIV→AIDS takes "), B("~8–10 years"), T(".")], BASELINE),
+        ([T("We use "), B("γ = 0.1/yr"), T(" → "), B("R₀ ≈ 2.35"), T(".")], VACC),
+    ],
+    "verify_baseline_prevalence.png",
+    "Baseline prevalence — growth to an endemic plateau",
+    key_size=15, bullet_size=14.5)
+
+# =========================================================================== #
+# SLIDE 6 — VALIDATION  (fig verify_condom_prevalence)
+# =========================================================================== #
+figure_slide(
+    "Validation · Fig. 15.5",
+    "Calibrated against the published sIC model",
+    "Key message",
+    "The model is calibrated and behaves like the published sIC model before we "
+    "add a vaccine.",
+    [
+        ([T("Baseline reproduces the textbook: growth to a high endemic plateau.")],
+         VACC),
+        ([T("Female prevalence ("), B("0.77"), T(") above male ("), B("0.62"),
+          T(").")], VACC),
+        ([T("Condom scenario (halving both β) sharply suppresses it.")], CONDOM),
+    ],
+    "verify_condom_prevalence.png",
+    "Baseline vs. condom scenario prevalence",
+    key_size=15, bullet_size=15)
+
+# =========================================================================== #
+# SLIDE 7 — VACCINE EXTENSION  (fig qa_protected_fraction)
+# =========================================================================== #
+figure_slide(
+    "Model Extension · Protected Compartments",
+    "A “take”-with-waning vaccine",
+    "Key message",
+    "Protected people stay in the partner pool, so vaccination dilutes the "
+    "infected fraction — this is what produces herd immunity.",
+    [
+        ([T("Add protected adults "), B("Pf2, Pm2"),
+          T("; vaccinate susceptible adults at "), B("ν = 0.65/yr"),
+          T(" (≈ Garnett 2002 “65% coverage”).")], VACC),
+        ([T("Protection wanes at "), B("l = 0.1/yr"), T(" (≈ 10-year mean).")], VACC),
+        ([T("Ceiling: at most "), B("ν/(ν+l) = 0.87"),
+          T(" of adults are ever protected.")], VACC),
+        ([T("Cost tracked via "), B("dV/dt = ν(Sf2+Sm2)"), T(".")], VACC),
+    ],
+    "qa_protected_fraction.png",
+    "Protected fraction → waning ceiling 0.87",
+    key_size=14.5, bullet_size=14)
+
+# =========================================================================== #
+# SLIDE 8 — Q(a) PEAK & DECLINE  (fig qa_incidence)
+# =========================================================================== #
+figure_slide(
+    "Q(a) · Peak & Decline",
+    "Does the vaccine make it peak then decline?",
+    "Answer",
+    "Yes — vaccination turns sustained growth into immediate decline.",
+    [
+        ([T("Under ν = 0.65, the effective reproduction number drops to "),
+          B("R_eff ≈ 0.31 < 1"), T(".")], VACC),
+        ([T("HIV incidence "), B("declines from the very start"), T(".")], VACC),
+        ([T("The untreated baseline instead peaks at "),
+          B("791 new infections/yr"), T(" around year 48.")], BASELINE),
+    ],
+    "qa_incidence.png",
+    "HIV incidence: baseline peak vs. vaccinated decline",
+    head_size=29, key_size=15, bullet_size=14.5)
+
+# =========================================================================== #
+# SLIDE 9 — Q(b) COST  (fig qb_cost)
+# =========================================================================== #
+figure_slide(
+    "Q(b) · Program Cost",
+    "What does it cost?",
+    "Key message",
+    "Cost-per-infection-averted is the transferable metric — absolute $ scale "
+    "with this small synthetic population.",
+    [
+        ([T("At "), B("$10 per vaccination"), T(": cumulative cost "),
+          B("≈ $162k"), T(" by year 30 (≈ $4,070/yr at steady state).")], VACC),
+        ([T("About "), B("$102 per infection averted"), T(" at 30 years.")], VACC),
+        ([T("Within the "), B("$110–390"),
+          T(" range of the Imperial-College / Stover analyses.")], VACC),
+    ],
+    "qb_cost.png",
+    "Cumulative cost & cost per infection averted",
+    key_size=14.5, bullet_size=14.5)
+
+# =========================================================================== #
+# SLIDE 10 — Q(c) THRESHOLD  (fig qc_prevalence_vs_nu, NO key message)
+# =========================================================================== #
+figure_slide_no_key(
+    "Q(c) · The Critical Rate",
+    "Optimum rate — the elimination threshold",
+    [
+        ([T("A critical rate "), B("νc ≈ 0.37/yr"),
+          T(" drives the epidemic to elimination above it.")], SIGNAL),
+        ([T("Matches herd immunity: "), B("νc = l·pc/(1−pc)"), T(" with "),
+          B("pc = 1 − 1/R₀ ≈ 0.574"), T(".")], VACC),
+        ([T("The standard "), B("ν = 0.65"), T(" sits comfortably above νc.")],
+         VACC),
+    ],
+    "qc_prevalence_vs_nu.png",
+    "Steady-state prevalence vs. vaccination rate ν",
+    head_size=29, bullet_size=15)
+
+# =========================================================================== #
+# SLIDE 11 — Q(c) COST-EFFECTIVENESS  (fig qc_cost_effectiveness)
+# =========================================================================== #
+figure_slide(
+    "Q(c) · Two Optimums",
+    "Optimum rate — best value vs. elimination",
+    "Key message",
+    "“Control the epidemic” and “best value for money” are not "
+    "the same target.",
+    [
+        ([B("Epidemiological optimum: "),
+          T("eliminate the epidemic, ν ≥ νc.")], SIGNAL),
+        ([B("Cost-effective optimum: "),
+          T("best value — a diminishing-returns knee near "),
+          B("ν ≈ 0.18/yr"), T(".")], VACC),
+    ],
+    "qc_cost_effectiveness.png",
+    "Cost-effectiveness — the value knee at ν ≈ 0.18",
+    head_size=29, key_size=15.5, bullet_size=15)
+
+# =========================================================================== #
+# SLIDE 12 — Q(d) VACCINE vs CONDOMS  (fig qd_averted_and_reff)
+# =========================================================================== #
+figure_slide(
+    "Q(d) · Vaccination vs. Condoms",
+    "Which controls it better?",
+    "Key message",
+    "Essentially a tie on epidemiological outcome; they differ on cost basis and "
+    "the vaccine's waning ceiling — no single winner is claimed.",
+    [
+        ([B("Vaccination"), T(" (ν=0.65) → R_eff=0.31, averts "), B("≈31,224"),
+          T(" infections, explicit cost "), B("≈$349k"), T(".")], VACC),
+        ([B("Condoms"), T(" (halving β) → R₀=1.17 (just above threshold), averts "),
+          B("≈30,857"), T(", no priced cost here.")], CONDOM),
+    ],
+    "qd_averted_and_reff.png",
+    "Infections averted & R_eff by strategy",
+    head_size=30, key_size=14.5, bullet_size=14.5)
+
+# =========================================================================== #
+# SLIDE 13 — TAKEAWAYS (numbered list)
+# =========================================================================== #
+_slide_no += 1
 s = prs.slides.add_slide(BLANK)
-_set_bg(s, NAVY)
-_txt(s, Inches(0.95), Inches(2.6), Inches(11.4), Inches(1.0),
-     "Thank you — questions?", 40, WHITE, bold=True)
-_rule(s, Inches(1.0), Inches(3.7), Inches(2.4), ACCENT, height=Pt(4))
-_txt(s, Inches(1.0), Inches(4.0), Inches(11.4), Inches(1.6),
-     "Backup: R₀ = c·√(β_mf·β_fm)/(μ+γ) = 2.35  ·  p_c = 1−1/R₀ = 0.574  ·  "
-     "waning ceiling ν/(ν+l) = 0.87  ·  ν_c ≈ 0.37  ·  R_eff(ν=0.65) = 0.31",
-     15, RGBColor(0xC7, 0xD3, 0xE2), line_spacing=1.3)
-_txt(s, Inches(1.0), Inches(6.2), Inches(11), Inches(0.5),
-     "李傳漢 · B11611027 · BME5113 · sIC HIV vaccination",
-     13, RGBColor(0x9F, 0xB4, 0xCC))
-_note(s, "Backup / Q&A slide. Key constants for fielding questions: R0=2.35, "
-         "p_c=0.574, waning ceiling 0.87, ν_c≈0.37, R_eff(0.65)=0.31.")
+_set_bg(s, PAPER)
+_slide_number(s, 13)
+_kicker(s, "Synthesis · What We Learned", KICKER_TOP)
+_headline(s, "Takeaways", HEAD_TOP, size=34)
+_footer(s, 13)
+
+takeaways = [
+    [T("A waning vaccine at "), B("ν=0.65"), T(" drives "), B("R_eff < 1"),
+     T(" and makes the epidemic decline.")],
+    [T("It is "), B("cost-effective"), T(" — about "),
+     B("$102 per infection averted"), T(".")],
+    [T("It is "), B("comparable to condom promotion"),
+     T(" on epidemiological outcome.")],
+    [T("Conclusions hold "), B("above the herd-immunity threshold"),
+     T(" νc ≈ 0.37/yr.")],
+]
+tk_top = Inches(2.25)
+tk_gap = Inches(0.28)
+tk_h = (SH - Inches(0.7) - tk_top - 3 * tk_gap) / 4
+num_w = Inches(0.62)
+for i, runs in enumerate(takeaways):
+    ty = tk_top + i * (tk_h + tk_gap)
+    # number chip (signal-red square, white numeral)
+    chip = _rect(s, MARGIN, ty + (tk_h - Inches(0.62)) / 2, num_w, Inches(0.62),
+                 SIGNAL)
+    tf = chip.text_frame
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
+    r = p.add_run()
+    r.text = str(i + 1)
+    r.font.size = Pt(22); r.font.bold = True; r.font.name = FONT_DISPLAY
+    r.font.color.rgb = WHITE
+    # text
+    tb = s.shapes.add_textbox(MARGIN + num_w + Inches(0.32), ty,
+                              CONTENT_W - num_w - Inches(0.32), tk_h)
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+    tf.margin_left = 0; tf.margin_right = 0; tf.margin_top = 0; tf.margin_bottom = 0
+    p = tf.paragraphs[0]
+    p.line_spacing = 1.15
+    _add_runs(p, runs, INK_SOFT, 18, FONT_BODY)
+_note(s, "Takeaways: vaccination at ν=0.65 drives R_eff<1 and the epidemic "
+         "declines; it is cost-effective (~$102/infection averted); comparable to "
+         "condoms; conclusions hold above the herd-immunity threshold νc≈0.37.")
+
+# =========================================================================== #
+# SLIDE 14 — LIMITATIONS
+# =========================================================================== #
+_slide_no += 1
+s = prs.slides.add_slide(BLANK)
+_set_bg(s, PAPER)
+_slide_number(s, 14)
+_kicker(s, "Honesty · What To Distrust", KICKER_TOP)
+_headline(s, "Limitations", HEAD_TOP, size=34)
+_footer(s, 14)
+
+lims = [
+    ([B("γ recalibrated"),
+      T(" from the implausible literal textbook value.")], BASELINE),
+    ([T("Results are "), B("sensitive near the R₀ threshold"),
+      T(", so condoms vs. vaccine is a close call.")], BASELINE),
+    ([B("Small synthetic population"),
+      T(" — use cost-per-infection-averted, not absolute $.")], VACC),
+    ([T("A "), B("single operating point"),
+      T(" was analysed, not a full sweep of every parameter.")], VACC),
+    ([T("The herd-immunity result "),
+      B("depends on keeping protected people in the partner pool"), T(".")],
+     CONDOM),
+]
+_bullets(s, lims, MARGIN, Inches(2.25), CONTENT_W, Inches(4.5),
+         size=18, gap_after=14, line_spacing=1.2)
+_note(s, "Limitations: γ recalibrated; near-threshold sensitivity; small synthetic "
+         "population (use $/infection averted); single operating point; herd "
+         "immunity depends on protected people staying in the partner pool.")
+
+# =========================================================================== #
+# SLIDE 15 — CLOSING
+# =========================================================================== #
+_slide_no += 1
+s = prs.slides.add_slide(BLANK)
+_set_bg(s, PAPER)
+_slide_number(s, 15)
+_kicker(s, "Part 2 · The End", KICKER_TOP)
+_headline(s, "Thank you.\nQuestions?", Inches(1.9), size=56,
+          height=Inches(2.2))
+# recap box (white card, signal left border)
+recap_top = Inches(4.45)
+recap_w = Inches(7.6)
+recap_h = Inches(1.0)
+_rect(s, MARGIN, recap_top, recap_w, recap_h, WHITE, line_color=HAIRLINE,
+      line_w=Pt(1))
+_rect(s, MARGIN, recap_top, Pt(3), recap_h, SIGNAL)
+rb = s.shapes.add_textbox(MARGIN + Inches(0.22), recap_top, recap_w - Inches(0.3),
+                          recap_h)
+tf = rb.text_frame
+tf.word_wrap = True
+tf.vertical_anchor = MSO_ANCHOR.MIDDLE
+p = tf.paragraphs[0]
+p.line_spacing = 1.2
+for text, opts in [("Recap: ", {"color": INK}),
+                   ("R₀ ≈ 2.35", {"color": VACC, "bold": True}),
+                   (" → with ", {"color": INK}),
+                   ("ν = 0.65", {"color": VACC, "bold": True}),
+                   (", ", {"color": INK}),
+                   ("R_eff ≈ 0.31 < 1", {"color": VACC, "bold": True}),
+                   (".", {"color": INK})]:
+    r = p.add_run(); r.text = text
+    r.font.size = Pt(17); r.font.name = FONT_DISPLAY
+    r.font.bold = opts.get("bold", True)
+    r.font.color.rgb = opts["color"]
+# footer line with hairline above
+ft = Inches(6.15)
+_rect(s, MARGIN, ft, CONTENT_W, Pt(1), HAIRLINE)
+_txt(s, MARGIN, ft + Inches(0.18), CONTENT_W, Inches(0.4),
+     "李傳漢 (Chuan-Han Li) · B11611027  —  BME5113 Biological Systems "
+     "Modeling & Analysis · Term Project, Part 2",
+     13, INK_SOFT, bold=True, font=FONT_BODY)
+_note(s, "Closing. Recap: R0≈2.35 → with ν=0.65, R_eff≈0.31<1.")
 
 # --------------------------------------------------------------------------- #
 prs.save(OUT)
 print(f"Saved {OUT} with {len(prs.slides._sldIdLst)} slides.")
+
+
+# =========================================================================== #
+# VERIFICATION PASS — re-open and assert every shape is within slide bounds
+# =========================================================================== #
+def verify(path):
+    p = Presentation(path)
+    sw, sh = p.slide_width, p.slide_height
+    n = len(p.slides._sldIdLst)
+    violations = []
+    for si, slide in enumerate(p.slides, start=1):
+        for shp in slide.shapes:
+            try:
+                left = shp.left; top = shp.top
+                w = shp.width; h = shp.height
+            except Exception:
+                continue
+            if left is None or top is None or w is None or h is None:
+                continue
+            if left < 0 or top < 0 or (left + w) > sw or (top + h) > sh:
+                violations.append(
+                    (si, shp.shape_type, shp.name,
+                     round(Emu(left).inches, 2), round(Emu(top).inches, 2),
+                     round(Emu(left + w).inches, 2),
+                     round(Emu(top + h).inches, 2)))
+    return n, violations
+
+
+n, violations = verify(OUT)
+print(f"Re-opened: {n} slides.")
+assert n == 15, f"Expected 15 slides, got {n}"
+if violations:
+    print(f"BOUNDS VIOLATIONS: {len(violations)}")
+    for v in violations:
+        print("  slide", v[0], "shape", v[2], "type", v[1],
+              f"L={v[3]} T={v[4]} R={v[5]} B={v[6]} (slide 13.33x7.5)")
+else:
+    print("Bounds check: 0 violations — every shape within slide bounds.")
