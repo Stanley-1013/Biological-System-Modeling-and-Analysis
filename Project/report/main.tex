@@ -1,0 +1,115 @@
+% !TEX program = lualatex
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xcolor}
+
+% --- fonts: body Latin Modern; CJK fallback via Noto Sans TC (for stray 中文) ---
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+\setmonofont{Latin Modern Mono}
+\usepackage{luatexja-fontspec}
+\setmainjfont{Noto Sans TC}
+\setsansjfont{Noto Sans TC}
+
+% --- figures live in the two simulation folders ---
+\graphicspath{%
+  {../part1_glucose/figures/}%
+  {../part2_hiv/figures/}%
+}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5em}
+\titlespacing*{\section}{0pt}{1.3em}{0.5em}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.3em}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+
+% shorthands
+\newcommand{\degC}{^\circ\mathrm{C}}
+\newcommand{\mgdl}{\ensuremath{\,\mathrm{mg}/100\,\mathrm{ml}}}
+\newcommand{\uU}{\ensuremath{\,\mu\mathrm{U}/\mathrm{ml}}}
+\newcommand{\Rzero}{\mathcal{R}_0}
+\newcommand{\Reff}{\mathcal{R}_{\mathrm{eff}}}
+\newcommand{\dd}[2]{\frac{\mathrm{d}#1}{\mathrm{d}#2}}
+
+% lightweight shims so we don't need the (uninstalled) siunitx package
+\newcommand{\si}[1]{\ensuremath{#1}}
+\providecommand{\micro}{\mu}
+
+\title{\vspace{-1.2cm}\textbf{BME5113 Biological Systems Modeling and Analysis}\\[4pt]
+\large Term Project --- Hormonal Glucose Control and HIV Vaccination Modeling}
+\author{Chuan-Han Li (李傳漢)\quad B11611027\\ \small Department of Biomechatronics Engineering, National Taiwan University}
+\date{Spring 2025}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\begin{abstract}
+\noindent This report addresses the two parts of the term project. \textbf{Part~1} implements the
+Cobelli \emph{et~al.}\ (1982) intermediate-complexity glucose--insulin--glucagon model (Haefner
+Ch.~12) and works through exercises 1--7: reproducing the IVGTT response, tracing where ingested
+glucose goes, explaining the insulin ``hump'', and simulating diabetic, obese, hyperinsulinaemic and
+insulin-overdose subjects. A central practical finding is that the literal Table~12.2 parameters do
+not reproduce Fig.~12.4 and require a small, explicitly documented calibration. \textbf{Part~2}
+implements the simplified Imperial College (``sIC'') HIV/AIDS compartment model (Haefner Ch.~15),
+extends it with a waning vaccine (protected compartments $P_{f,2},P_{m,2}$, vaccination rate
+$\nu=0.65\,$yr$^{-1}$, loss of protection $l=0.1\,$yr$^{-1}$), and studies the epidemic peak/decline,
+cost, optimum vaccination rate, and vaccination versus condom use. Two modeling judgments are
+required and documented: the literal progression rate $\gamma=1.16\,$yr$^{-1}$ gives $\Rzero<1$ and
+must be corrected to a biologically grounded $\gamma=0.1\,$yr$^{-1}$ ($\Rzero\approx2.35$); and
+protected individuals must remain in the frequency-dependent partner pool for the vaccine to express
+herd immunity. All simulations are in Python (\texttt{scipy.integrate.solve\_ivp}); key results are
+cross-checked with a second integrator.
+\end{abstract}
+
+\tableofcontents
+\vspace{0.6em}
+
+\input{part1}
+\clearpage
+\input{part2}
+\clearpage
+
+\section{Reproducibility and code}
+All models and analyses are in Python (NumPy/SciPy/Matplotlib). Part~1 lives in
+\texttt{part1\_glucose/} (\texttt{cobelli.py} core; \texttt{ex1\_ivgtt.py}\,$\dots$\,\texttt{ex7\_icecream.py};
+\texttt{verify\_core.py}); Part~2 in \texttt{part2\_hiv/} (\texttt{sic.py} core; \texttt{q\_a}\,$\dots$\,\texttt{q\_d}
+analyses; \texttt{verify\_sic.py}). Each core ships a verification harness that checks the basal
+steady state / conservation of individuals and agreement between the LSODA and Radau integrators.
+Octave (\texttt{.m}) cross-check scripts for the two cores are provided in \texttt{octave\_crosscheck/}.
+
+\section{References}
+\small
+\begin{enumerate}[leftmargin=1.4em,itemsep=1pt]
+\item Cobelli, C., Federspil, G., Pacini, G., Salvan, A., \& Scandellari, C. (1982). An integrated
+mathematical model of the dynamics of blood glucose and its hormonal control. \emph{Mathematical
+Biosciences}, 58, 27--60.
+\item Makroglou, A., Li, J., \& Kuang, Y. (2006). Mathematical models and software tools for the
+glucose--insulin regulatory system and diabetes: an overview. \emph{Applied Numerical Mathematics},
+56(3--4), 559--573.
+\item Dalla Man, C., Rizza, R.~A., \& Cobelli, C. (2007). Meal simulation model of the
+glucose--insulin system. \emph{IEEE Transactions on Biomedical Engineering}, 54(10), 1740--1749.
+\item Garnett, G.~P., \& Anderson, R.~M. (1993). Factors controlling the spread of HIV in
+heterosexual communities in developing countries. \emph{Philosophical Transactions of the Royal
+Society of London B}, 342, 137--159.
+\item Garnett, G.~P., Desai, K., \& Williams, J. (2002). The epidemiological impact of an HIV/AIDS
+vaccination as a function of vaccine properties (Imperial College model). In J.~Stover \emph{et~al.}
+(Eds.), \emph{Policy Research Working Paper 2811}. World Bank.
+\item Haefner, J.~W. (2005). \emph{Modeling Biological Systems: Principles and Applications}
+(2nd~ed., Ch.~12 \& 15). Springer.
+\end{enumerate}
+
+\end{document}

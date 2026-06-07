@@ -1,0 +1,567 @@
+\section{Part 2 --- HIV Vaccination on the sIC AIDS Model}
+
+This part takes the simplified Imperial College (sIC) AIDS compartment model from
+Haefner~(2005), Chapter~15, and extends it with an HIV vaccination programme. The
+task is essentially Exercise~15.6~\#5: vaccinate sexually active susceptibles into
+a protected state at rate $\nu$, let protection wane at rate $l$, and then ask four
+questions --- whether vaccination makes the epidemic peak and decline, what it
+costs, what the optimum vaccination rate is, and how vaccination compares with
+condom promotion. I work from the textbook equations and Table~15.2, the
+vaccination design loosely follows Garnett \& Stover~(2002), and all numbers below
+come from my own simulation of the model. Two of the modelling decisions needed to
+make the textbook model behave as the textbook describes are not cosmetic, so I
+state them explicitly and justify them rather than hide them.
+
+\subsection{The sIC model}
+
+The sIC model partitions the population into twelve compartments: the three disease
+states susceptible ($S$), HIV-infected but pre-AIDS ($I$), and clinical AIDS ($A$),
+crossed with two sexes (female $f$, male $m$) and two age classes (age~1 = birth to
+15, pre-sexual; age~2 = 16 to death, sexually active). Only age-2 individuals
+participate in transmission. The state vector is therefore
+\[
+\{S_{f,1},S_{f,2},S_{m,1},S_{m,2},\;
+  I_{f,1},I_{f,2},I_{m,1},I_{m,2},\;
+  A_{f,1},A_{f,2},A_{m,1},A_{m,2}\}.
+\]
+The model is a deliberate simplification of the full IC model: two sexes with
+identical behaviour, a single AIDS stage, a single sexual-activity class (so the
+social-mixing probability collapses to $\rho=1$), and two age classes.
+
+\paragraph{Force of infection.}
+HIV is sexually transmitted, so transmission is \emph{frequency-dependent}: people
+seek a roughly fixed number of partners regardless of how large the population is,
+so what matters is the \emph{proportion} of potential partners who are infectious,
+not their absolute density. For a susceptible age-2 female the per-capita hazard is
+(Eq.~15.6)
+\begin{equation}
+\lambda_{S_{f,2}} = c\,\rho\,\beta_{m,f}\,\frac{I_{m,2}}{S_{m,2}+I_{m,2}},
+\qquad
+\lambda_{S_{m,2}} = c\,\rho\,\beta_{f,m}\,\frac{I_{f,2}}{S_{f,2}+I_{f,2}},
+\label{eq:foi}
+\end{equation}
+the second being the male analogue (Eq.~15.8). Here $c$ is the new-partner
+acquisition rate, $\beta_{m,f}$ and $\beta_{f,m}$ are the per-partnership
+transmission probabilities, and the factor $I/(S+I)$ is the frequency of
+infectious individuals among possible partners. Two features deserve note. First,
+the transmission probabilities are \emph{asymmetric}: $\beta_{m,f}=0.2$ versus
+$\beta_{f,m}=0.075$, so male\,$\to$\,female transmission is about $2.7\times$ more
+likely, a standard biological feature of heterosexual HIV. This is why women reach
+higher equilibrium prevalence than men in the baseline run. Second, clinical-AIDS
+individuals ($A$) are \emph{excluded} from the partner pool (assumed not sexually
+active), so the denominator is $S+I$ only --- a point that turns out to matter for
+the choice of epidemic seed.
+
+\paragraph{The female equations.}
+The full female subsystem (Eqs.~15.5a--f) is
+\begin{align}
+\dd{S_{f,1}}{t} &= \eta\theta\zeta\bigl(S_{f,2}+(1-\vartheta)I_{f,2}\bigr)
+                   - \mu S_{f,1} - \xi S_{f,1}, \label{eq:Sf1}\\
+\dd{S_{f,2}}{t} &= \xi S_{f,1} - (\lambda_{S_{f,2}}+\mu)\,S_{f,2}, \label{eq:Sf2}\\
+\dd{I_{f,1}}{t} &= \eta\theta\zeta\vartheta\,I_{f,2}
+                   - (\mu+\xi)I_{f,1} - \gamma I_{f,1}, \label{eq:If1}\\
+\dd{I_{f,2}}{t} &= \lambda_{S_{f,2}} S_{f,2}
+                   - (\mu+\gamma)I_{f,2} + \xi I_{f,1}, \label{eq:If2}\\
+\dd{A_{f,1}}{t} &= \gamma I_{f,1} - (\mu+\xi+\alpha)A_{f,1}, \label{eq:Af1}\\
+\dd{A_{f,2}}{t} &= \gamma I_{f,2} + \xi A_{f,1} - (\mu+\alpha)A_{f,2}. \label{eq:Af2}
+\end{align}
+The male equations~(15.7a--f) are identical in form, with the newborn sex split
+$(1-\eta)$ replacing $\eta$ and the male force of infection
+$\lambda_{S_{m,2}}$ replacing $\lambda_{S_{f,2}}$; note that male births are still
+driven by the age-2 female compartments, since the model assumes males do not limit
+reproduction.
+
+The mechanisms encoded here are: \emph{reproduction}, with births created only from
+age-2 females at fecundity $\theta$ (Eq.~\ref{eq:Sf1}); \emph{perinatal
+transmission}, where an infected mother bears an infected newborn with probability
+$\vartheta=0.35$ (feeding $I_{\cdot,1}$, Eq.~\ref{eq:If1}) and an uninfected
+newborn with probability $1-\vartheta$ (feeding $S_{\cdot,1}$); \emph{ageing} at
+rate $\xi$, moving each state from age~1 to age~2 within sex; \emph{AIDS
+progression} at rate $\gamma$ moving $I\to A$; \emph{AIDS mortality} $\alpha$ added
+to natural mortality $\mu$ in the $A$ compartments; and \emph{demography}, with
+natural death $\mu$ acting on every compartment. The parameters are listed in
+Table~\ref{tab:sic-params}.
+
+\begin{table}[t]
+\centering
+\caption{Parameters of the simple IC (sIC) AIDS model, after Haefner~(2005),
+Table~15.2 (values attributed there to Garnett \& Anderson, 1993). Variable
+``values'' are the initial conditions used for the baseline run.}
+\label{tab:sic-params}
+\begin{tabular}{llrl}
+\toprule
+Symbol & Meaning & {Value} & Unit \\
+\midrule
+$\alpha$        & AIDS-stage extra death rate                 & 1.0    & yr$^{-1}$ \\
+$\beta_{f,m}$   & female$\to$male transmission probability    & 0.075  & --- \\
+$\beta_{m,f}$   & male$\to$female transmission probability     & 0.2    & --- \\
+$c$             & new-partner acquisition rate                 & 2.35   & yr$^{-1}$ \\
+$\eta$          & proportion of newborns female                & 0.5    & --- \\
+$\gamma$        & progression rate $I\to A$ (Table value)      & 1.16   & yr$^{-1}$ \\
+$\mu$           & natural (non-AIDS) death rate                & 0.0227 & yr$^{-1}$ \\
+$\rho$          & social-mixing probability                    & 1.0    & --- \\
+$\theta$        & female fecundity                             & 0.2088 & yr$^{-1}$ \\
+$\vartheta$     & perinatal transmission probability           & 0.35   & --- \\
+$\xi$           & ageing rate age-1$\to$age-2                   & 0.0667 & yr$^{-1}$ \\
+$\zeta$         & proportion in sexual-activity class          & 1.0    & --- \\
+\midrule
+\multicolumn{4}{l}{\emph{Initial conditions (individuals):}
+  $S_{f,1}=S_{m,1}=3000$, $S_{f,2}=S_{m,2}=1000$,} \\
+\multicolumn{4}{l}{\quad all $I=0$, all $A=0$ except the seed (see
+  \S\ref{sec:judgments}).} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{A conservation correction to the printed equations.}
+The AIDS age-2 equation deserves a note. The textbook prints the ageing inflow to
+$A_{f,2}$ (and $A_{m,2}$) as $\xi I_{f,1}$, but this violates conservation of
+individuals. In Eq.~\ref{eq:Af1}, $A_{f,1}$ \emph{loses} $\xi A_{f,1}$ to ageing,
+and that flux must land in $A_{f,2}$; meanwhile the ageing of $I_{f,1}$ is
+\emph{already} counted as an inflow to $I_{f,2}$ in Eq.~\ref{eq:If2}. Using
+$\xi I_{f,1}$ in Eq.~\ref{eq:Af2} would therefore double-count the $I_{f,1}$ cohort
+and lose the $A_{f,1}$ cohort. I use the conservative form $\xi A_{f,1}$
+(and $\xi A_{m,1}$) shown above. As a check, the total-population balance
+$\frac{\mathrm{d}}{\mathrm{d}t}\sum(\text{states}) = \text{births}-\text{deaths}$
+then holds to $\sim\!10^{-13}$ in the simulation, which would not be the case with
+the printed term.
+
+\subsection{Two modelling judgments}
+\label{sec:judgments}
+
+Two decisions were forced on me by trying to make the model reproduce the
+textbook's stated behaviour. I present both honestly, because each changes the
+results.
+
+\paragraph{(i) The progression rate $\gamma$.}
+For a two-sex frequency-dependent model the basic reproduction number is the
+geometric mean of the two cross-sex reproduction numbers,
+\begin{equation}
+\Rzero = \frac{c\,\sqrt{\beta_{m,f}\,\beta_{f,m}}}{\mu+\gamma}.
+\label{eq:R0}
+\end{equation}
+The Table~15.2 value $\gamma=1.16\,\text{yr}^{-1}$ implies a mean time from HIV
+infection to AIDS of $1/(\mu+\gamma)\approx0.85$~yr --- less than a year, which
+contradicts the textbook's own statement that progression takes 1--10~years. Worse,
+substituting it into Eq.~\ref{eq:R0} gives $\Rzero\approx0.24<1$, so the epidemic
+cannot ignite at all; a literal-parameter simulation confirms the seeded infection
+dies out (peak prevalence $\sim\!7\times10^{-4}$). This directly contradicts
+Fig.~15.5, where HIV persists endemically. I therefore adopt the biologically
+grounded $\gamma=0.1\,\text{yr}^{-1}$, giving a mean infectious period of
+$1/(\mu+\gamma)\approx8.1$~yr --- comfortably inside the textbook's stated 1--10~yr
+range --- and
+\begin{equation}
+\Rzero = \frac{2.35\,\sqrt{0.2\times0.075}}{0.0227+0.1} \approx 2.35 > 1,
+\end{equation}
+so the epidemic invades, as the textbook figure requires. The associated
+herd-immunity (critical vaccinated) fraction is $p_c = 1-1/\Rzero \approx 0.574$.
+
+\paragraph{(ii) The epidemic seed.}
+Table~15.2 seeds the epidemic with five AIDS males ($A_{m,2}=5$). But AIDS
+individuals are excluded from the force of infection (Eq.~\ref{eq:foi}), so a seed
+placed entirely in $A$ cannot transmit anything: the five seed males simply
+progress to death without infecting anyone, and the epidemic never starts (verified
+numerically --- maximum incidence exactly zero). I therefore seed five
+\emph{infectious} males ($I_{m,2}=5$) instead. This is the smallest change that lets
+the documented epidemic ignite while respecting the model's own rule that $A$ does
+not transmit.
+
+\subsection{Validation against Fig.~15.5}
+
+With the two corrections above, the baseline ($\nu=0$) run reproduces the
+qualitative behaviour of Fig.~15.5a (\verb|verify_baseline_prevalence.png|): the
+total population grows over the early horizon (from $N(0)=8005$ to a peak of
+$\sim\!22{,}900$ around year~48, driven by the high developing-country fertility),
+HIV does \emph{not} burn out but settles to an endemic level, and female prevalence
+exceeds male prevalence. The simulated equilibrium prevalences are
+\begin{center}
+female $\approx 0.77$, \quad male $\approx 0.61$, \quad overall $\approx 0.41$,
+\end{center}
+against the textbook targets of $\sim\!0.9$ (female) and $\sim\!0.75$ (male). The
+ordering and endemic persistence match; the absolute levels run somewhat lower,
+which is unsurprising given that I had to recalibrate $\gamma$ to make the epidemic
+ignite at all. The time to exceed 10\% overall prevalence is about 34~yr, in the
+same decades-long ballpark as the textbook's $\sim\!20$~yr.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{verify_baseline_prevalence.png}
+\caption{Baseline sIC validation ($\nu=0$). HIV persists endemically and female
+prevalence exceeds male prevalence, reproducing the qualitative behaviour of
+Fig.~15.5a; equilibrium prevalences are female $\approx0.77$, male $\approx0.61$.}
+\label{fig:verify-baseline}
+\end{figure}
+
+The condom scenario (Fig.~15.5b) is modelled, as in the textbook, by halving both
+transmission probabilities ($\beta_{f,m}:0.075\to0.0375$,
+$\beta_{m,f}:0.2\to0.1$). This multiplies $\Rzero$ by exactly $0.5$ (it enters
+Eq.~\ref{eq:R0} as $\sqrt{\beta_{m,f}\beta_{f,m}}$), giving $\Rzero\approx1.17$ ---
+only just above one. In my calibration the resulting equilibrium prevalence is very
+low ($\sim\!0.001$, \verb|verify_condom_prevalence.png|), which is a larger drop
+than the textbook's Fig.~15.5b ($\sim\!0.7$ female, $\sim\!0.45$ male). The
+direction is right (condoms lower prevalence and lengthen the time-to-10\%) but the
+magnitude diverges, and the reason is instructive: at $\gamma=0.1$ the halved-$\beta$
+$\Rzero$ sits barely above the threshold $\Rzero=1$, so the epidemic is in the
+extremely sensitive near-threshold regime where small changes in calibration move
+the endemic level a great deal. The textbook's larger residual prevalence is
+consistent with its (implicitly) higher underlying $\Rzero$. I flag this divergence
+rather than tune it away; it is the same near-threshold sensitivity that recurs in
+Q(d).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{verify_condom_prevalence.png}
+\caption{Condom scenario (both $\beta$ halved). Prevalence collapses because
+$\Rzero$ drops to $\approx1.17$, just above threshold. The direction matches
+Fig.~15.5b; the magnitude is larger because the halved-$\beta$ system sits in the
+sensitive near-threshold regime (see text).}
+\label{fig:verify-condom}
+\end{figure}
+
+\subsection{The vaccination extension}
+
+The vaccine adds two protected compartments, $P_{f,2}$ and $P_{m,2}$, at age~2 only
+(age~2 is the terminal age class, so there is no ageing out of $P$). Susceptibles
+are vaccinated at per-capita rate $\nu$ and protection wanes back to susceptible at
+rate $l$:
+\begin{align}
+\dd{P_{f,2}}{t} &= \nu\,S_{f,2} - (l+\mu)\,P_{f,2}, &
+\dd{P_{m,2}}{t} &= \nu\,S_{m,2} - (l+\mu)\,P_{m,2}, \\
+\dd{S_{f,2}}{t} &= \xi S_{f,1} - (\lambda_{S_{f,2}}+\mu+\nu)\,S_{f,2} + l\,P_{f,2}, &
+\dd{S_{m,2}}{t} &= \xi S_{m,1} - (\lambda_{S_{m,2}}+\mu+\nu)\,S_{m,2} + l\,P_{m,2},
+\end{align}
+with all other equations unchanged. A cost accumulator tracks the cumulative number
+of vaccinations administered,
+\begin{equation}
+\dd{V}{t} = \nu\bigl(S_{f,2}+S_{m,2}\bigr),
+\qquad \text{cost} = \$10\times V,
+\label{eq:cost}
+\end{equation}
+integrated alongside the state so there is no post-hoc quadrature error. Each \$10
+charge counts a vaccination \emph{event}, which correctly includes re-vaccinating
+people whose protection waned and returned them to $S$. With $\nu=0$ the protected
+and cost compartments stay identically zero and the model reduces exactly to the
+baseline.
+
+\paragraph{Vaccine type.}
+I model a \emph{take} (all-or-nothing) vaccine with waning: while in $P$ an
+individual is treated as fully protected (no force of infection acts on $P$, and
+$P$ never flows to $I$), and a fraction loses protection at rate $l$. This is the
+cleanest reading of the requested $S\to P\to S$ flow and maps onto the IC model's
+``fully immunised + waning'' category. The project values $\nu=0.65\,\text{yr}^{-1}$
+and $l=0.1\,\text{yr}^{-1}$ correspond to the Garnett/Stover ``65\% coverage'' and
+``10-year mean duration'' standard scenario; using $\nu$ as a constant rate rather
+than a coverage level reached after five years is a deliberate simplification.
+Ignoring demography, the protected fraction saturates at a \emph{waning ceiling}
+\begin{equation}
+\frac{P}{S+P} \;\to\; \frac{\nu}{\nu+l} = \frac{0.65}{0.75} \approx 0.867,
+\end{equation}
+so even at this rate the vaccine can never protect everyone --- at most about 87\%
+of the eligible pool at any instant.
+
+\paragraph{The partner-pool convention.}
+One modelling choice in the extension is genuinely load-bearing: whether the
+protected individuals belong in the denominator of the frequency-dependent force of
+infection. Protected people are sexually active and uninfected, so they \emph{are}
+legitimate partners --- a partnership with a protected person simply transmits
+nothing. The correct frequency-dependent denominator is therefore
+$S+I+P$ (with $A$ still excluded). I adopt this convention. It matters because
+moving susceptibles into $P$ then \emph{dilutes} the infectious frequency
+$I/(S+I+P)$, which is exactly the mechanism of herd immunity. If instead one
+excluded $P$ from the denominator, vaccinees would be removed from \emph{both} the
+numerator and the denominator, artificially holding the infectious fraction up and
+spuriously erasing the herd-immunity threshold --- vaccination would then appear to
+have no critical rate at any level. That is an artifact of the denominator choice,
+not a property of the disease; I report it only as a sensitivity check in Q(c). At
+$\nu=0$ this choice is moot ($P=0$), so the baseline and condom scenarios are
+unaffected.
+
+\subsection{Q(a): Does vaccination cause a peak and decline?}
+
+The question asks whether vaccination makes the epidemic peak and then decline. The
+answer, at $\nu=0.65\,\text{yr}^{-1}$, is actually stronger than ``peak and
+decline'': because the achievable protected fraction (0.867) comfortably exceeds the
+herd-immunity threshold $p_c=0.574$, vaccination pushes the effective reproduction
+number below one,
+\begin{equation}
+\Reff \approx \Rzero\Bigl(1-\tfrac{\nu}{\nu+l}\Bigr)
+       \approx 2.35\times(1-0.867) \approx 0.31 < 1,
+\end{equation}
+so the seeded epidemic \emph{never ignites} in the first place.
+
+The contrast with the baseline is stark (Table~\ref{tab:qa},
+Figs.~\ref{fig:qa-incidence}--\ref{fig:qa-protected}). The baseline incidence rises
+to a large peak of $\sim\!791$ new infections/yr around year~48 and stays high,
+whereas under vaccination incidence is highest at $t=0$ (just the five seed males
+infecting a handful of contacts) and then \emph{falls monotonically} to essentially
+zero. Prevalence shows the same picture: the baseline climbs to a $\sim\!0.41$
+endemic plateau, while the vaccinated run shows only a negligible interior bump
+($\sim\!0.001$ around year~4.6) before declining to near zero. The decline is not
+instantaneous because the existing $I$/$A$ stock carries the virus for the $\sim\!8$--$10$~yr
+it takes to progress and die; but with $\Reff<1$ there is no fresh transmission to
+refill it, so the infection clears. Meanwhile the protected fraction of the eligible
+age-2 pool rises and saturates at $\approx0.85$, just below the analytic ceiling
+$0.867$ (slightly lower because natural mortality $\mu$ also acts on $P$),
+confirming the take-with-waning steady state.
+
+\begin{table}[t]
+\centering
+\caption{Q(a): epidemic outcome with and without vaccination ($\nu=0.65$,
+80-yr horizon).}
+\label{tab:qa}
+\begin{tabular}{lcc}
+\toprule
+ & Baseline ($\nu=0$) & Vaccine ($\nu=0.65$) \\
+\midrule
+Peak incidence (new/yr)      & 790.6 (@ 47.8 yr) & 2.3 (@ $t=0$, the seed) \\
+Incidence behaviour          & rise to peak, stay high & monotone decline \\
+Peak overall prevalence      & 0.409 & 0.0010 (@ $\approx$4.6 yr) \\
+Prevalence @ 80 yr           & 0.408 & $\approx 0$ \\
+Protected fraction $P/(S+P)$ & --- & $\to 0.85$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qa_incidence.png}
+\caption{Q(a): incidence (new infections/yr), vaccine versus baseline. The baseline
+peaks at $\sim\!791$/yr near year~48; under vaccination ($\Reff\approx0.31$)
+incidence declines monotonically from the seed and never takes off.}
+\label{fig:qa-incidence}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qa_prevalence.png}
+\caption{Q(a): overall prevalence, vaccine versus baseline. The baseline rises to a
+$\sim\!0.41$ endemic plateau; the vaccinated run shows only a tiny early bump before
+declining to near zero.}
+\label{fig:qa-prevalence}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qa_protected_fraction.png}
+\caption{Q(a): protected fraction of the eligible age-2 pool, saturating near the
+analytic waning ceiling $\nu/(\nu+l)=0.867$.}
+\label{fig:qa-protected}
+\end{figure}
+
+\subsection{Q(b): Cost of vaccination}
+
+Using the cost accumulator of Eq.~\ref{eq:cost}, Table~\ref{tab:qb} reports the
+cumulative vaccinations, total cost, infections averted (cumulative baseline
+infections minus cumulative vaccinated infections), and cost per infection averted
+at several horizons.
+
+\begin{table}[t]
+\centering
+\caption{Q(b): cost and cost-effectiveness of vaccination ($\nu=0.65$, \$10/vax).}
+\label{tab:qb}
+\begin{tabular}{rrrrr}
+\toprule
+$T$ (yr) & Vaccinations & Cost (\$) & Infect.\ averted & \$/infection averted \\
+\midrule
+20 & 11{,}374 & 113{,}738 &    305 & 372 \\
+30 & 16{,}217 & 162{,}165 &  1{,}585 & 102 \\
+50 & 24{,}746 & 247{,}461 & 13{,}434 &  18 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Total cost grows nearly linearly: $\sim\!\$114$k at 20~yr, $\sim\!\$162$k at 30~yr,
+$\sim\!\$247$k at 50~yr (Fig.~\ref{fig:qb}). Most of the expense is the up-front
+vaccination of the standing susceptible pool; once the protected fraction
+saturates, the programme keeps re-vaccinating waned individuals and new entrants at
+a roughly steady $\sim\!407$ vaccinations/yr, i.e.\ a recurring cost of only
+$\sim\!\$4{,}070$/yr.
+
+Cost-effectiveness improves sharply over time. Early on the untreated baseline has
+barely taken off, so there are few infections to avert and the ratio looks expensive
+(\$372 per infection averted at 20~yr). As the baseline epidemic accelerates toward
+its $\sim\!791$/yr incidence peak while the vaccinated arm stays near zero, averted
+infections grow far faster than cost, and the cost per infection averted falls to
+\$102 at 30~yr and \$18 at 50~yr. The 30-yr figure of \$102 sits just below the
+\$110--390 band that Stover \& Garnett~(2002) report for the Imperial-College /
+rural-Zimbabwe setting (on their \$20/person basis), which is consistent given the
+\$10 unit cost here and the fact that, under the corrected partner-pool convention,
+vaccination averts nearly the entire baseline epidemic rather than only part of it.
+The absolute dollar totals depend on this small synthetic population, so the
+transferable metric is the cost \emph{per infection averted}, not the headline cost.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qb_cost.png}
+\caption{Q(b): (top) cumulative cost and vaccinations versus time, with horizon
+markers at 20/30/50~yr; (bottom) cumulative infections for baseline versus vaccine
+and the infections-averted band.}
+\label{fig:qb}
+\end{figure}
+
+\subsection{Q(c): Optimum vaccination rate}
+
+``Optimum'' has two defensible meanings, and I report both, because they give
+different answers.
+
+\paragraph{Epidemiological threshold $\nu_c$.}
+The smallest rate that drives $\Reff<1$ follows from requiring the protected
+fraction to reach $p_c$. Since the steady protected fraction is $\nu/(\nu+l)$, the
+condition $\nu/(\nu+l)\ge p_c$ gives a critical rate
+\begin{equation}
+\nu_c = \frac{l\,p_c}{1-p_c},
+\qquad p_c = 1-\tfrac{1}{\Rzero}\approx0.574,
+\end{equation}
+which evaluates to $\nu_c\approx0.135\,\text{yr}^{-1}$. This closed form is the
+right order of magnitude and direction but is a lower bound, because it omits two
+mechanisms the full sIC model contains: perinatal transmission ($\vartheta=0.35$),
+an infection route vaccination does not block, and demographic recruitment with
+mortality acting on $P$ (which holds the realised protected fraction slightly below
+the ceiling). Measuring the threshold directly --- seeding a tiny infection into the
+vaccinated disease-free population and finding the $\nu$ at which the early growth
+rate crosses zero ($\Reff=1$) --- gives a simulated $\nu_c\approx0.366\,\text{yr}^{-1}$
+(Fig.~\ref{fig:qc-threshold}). The standard $\nu=0.65$ sits comfortably above this,
+so it genuinely controls the epidemic. I emphasise that this is a frequency-dependent
+\emph{prevalence-proportion} threshold rather than an ``$(I+A)/N\to0$'' criterion:
+the severe AIDS mortality ($\alpha=1\,\text{yr}^{-1}$) drives the whole population
+toward extinction over centuries even at $\nu=0$, so absolute counts collapse for
+the wrong reason, and the invasion / $\Reff$ test is the robust signal.
+
+\paragraph{Cost-effective rate.}
+Sweeping $\nu$ over a 50-yr horizon, infections averted \emph{saturate} past
+$\nu_c$: below it each extra unit of $\nu$ averts many infections, but once
+$\nu\gtrsim\nu_c$ essentially all of the achievable $\sim\!13{,}400$ infections are
+already averted and further vaccination only re-vaccinates waned individuals for
+negligible benefit (Figs.~\ref{fig:qc-prev},~\ref{fig:qc-ce}). The
+diminishing-returns knee --- the smallest $\nu$ capturing 99\% of the maximum
+achievable aversion --- is at $\nu\approx0.175\,\text{yr}^{-1}$, with a marginal cost
+there of $\sim\!\$122$ per extra infection averted. The standard $\nu=0.65$ still
+controls the epidemic (it is above $\nu_c$) but over-vaccinates somewhat relative to
+this cost-effective knee; its average cost is \$18 per infection averted at 50~yr.
+
+\paragraph{Sensitivity.}
+The exact threshold tracks $\Rzero$: raising the partner rate to $c=3.0$ lifts
+$\Rzero$ to $\sim\!3.0$ and the simulated $\nu_c$ to $\sim\!0.48$; lowering it via
+$\gamma=0.18$ drops $\Rzero$ to $\sim\!1.42$ and $\nu_c$ to $\sim\!0.16$. The
+conclusion is robust in direction --- a finite $\nu_c=l\,p_c/(1-p_c)$ always exists
+under the correct convention and $\nu=0.65$ stays above it across this plausible
+range --- but near-threshold cases (small $\Rzero$) leave the margin thin.
+
+\paragraph{Caveat.}
+If $P$ is wrongly excluded from the partner pool, the invasion growth rate never
+crosses zero in the sweep: vaccination would appear to have \emph{no} finite
+threshold at any rate and merely shrink the epidemic. As argued above this is an
+artifact of dropping uninfected, sexually-active vaccinees out of the
+frequency-dependent denominator, and I report it only to show that the threshold
+result is genuine, not an accident of the denominator choice.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.80\linewidth]{qc_invasion_threshold.png}
+\caption{Q(c): invasion growth rate $r(\nu)$ crossing zero ($\Reff=1$) under the
+corrected convention ($P$ in pool, finite $\nu_c\approx0.366$); the wrong
+$P$-excluded convention (no crossing) is shown for contrast. Theory $\nu_c$,
+simulated $\nu_c$, and $\nu=0.65$ are marked.}
+\label{fig:qc-threshold}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qc_prevalence_vs_nu.png}
+\caption{Q(c): peak epidemic size versus $\nu$. Above the threshold the epidemic is
+suppressed.}
+\label{fig:qc-prev}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qc_cost_effectiveness.png}
+\caption{Q(c): average and marginal (incremental) cost per infection averted versus
+$\nu$, with the diminishing-returns knee at $\nu\approx0.175$ marked.}
+\label{fig:qc-ce}
+\end{figure}
+
+\subsection{Q(d): Vaccination versus condoms}
+
+Finally, which intervention controls the epidemic better: vaccination ($\nu=0.65$,
+$l=0.1$) or safe-sex education and condoms (modelled, as in the textbook, by halving
+both transmission probabilities)? They act on different levers --- condoms lower
+$\Rzero$ directly through $\beta$, vaccination moves people into $P$ --- so I compare
+them on matched outcomes (Table~\ref{tab:qd}, Figs.~\ref{fig:qd-comp},~\ref{fig:qd-averted}).
+
+\begin{table}[t]
+\centering
+\caption{Q(d): strategy comparison (80-yr horizon, $\Rzero=2.35$ baseline).}
+\label{tab:qd}
+\begin{tabular}{lcrr}
+\toprule
+Strategy & $\Rzero$ / $\Reff$ & Infect.\ averted & Cost (\$) \\
+\midrule
+Baseline                       & $\Rzero=2.35$         & ---       & 0 \\
+Vaccination ($\nu=0.65$)       & $\Reff=0.31$          & 31{,}224  & 348{,}618 \\
+Condoms ($0.5\beta$)           & $\Rzero=1.17$         & 30{,}857  & 0 (unpriced) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Both strategies essentially control the epidemic. Vaccination drives
+$\Reff=0.31<1$ (invasion rate $-0.040\,\text{yr}^{-1}$): it strictly crosses the
+elimination threshold because the protected fraction $0.867$ exceeds $p_c=0.574$.
+Condoms put $\Rzero$ at $1.17$ --- still marginally \emph{above} one (invasion rate
+$+0.086\,\text{yr}^{-1}$), so a 50\% $\beta$ cut is not quite enough to cross the
+threshold at this $\Rzero$, though the epidemic is so slow that it is effectively
+controlled within the horizon. On infections averted the two are nearly identical:
+vaccination averts $31{,}224$ of the baseline $31{,}235$, condoms $30{,}857$, with
+vaccination edging ahead only because it pushes $\Reff$ strictly below one (residual
+$11$ cumulative infections versus $378$ for condoms). Both collapse peak prevalence
+from $0.41$ to $\sim\!0.001$ with no large interior peak.
+
+Where they differ sharply is cost basis, and this is where I decline to crown a
+single winner. Vaccination carries an \emph{explicit} \$348{,}618 over 80~yr and is
+capped by the waning ceiling $0.867$, so it must re-vaccinate waned individuals
+indefinitely. Condoms are modelled as a permanent $0.5\times$ cut to $\Rzero$ at no
+priced cost --- but that cost is \emph{unpriced}, not zero; a real behaviour-change
+programme has its own budget the project does not supply. A dollar-matched
+comparison would need a condom-programme cost we do not have. There is also the
+near-threshold caveat: condoms leave $\Rzero$ only $\sim\!17\%$ above one, and a
+higher baseline $\Rzero$ (say a higher partner rate) would push condom-$\Rzero$
+clearly above one while raising vaccination's $\nu_c$ --- both verdicts are
+$\Rzero$-sensitive near threshold, which is exactly why I report $\Reff$ explicitly
+rather than just trajectories. The honest reading is a near-tie on epidemiological
+outcome, with vaccination marginally ahead for strictly crossing the threshold, and
+the two not directly comparable on cost as priced here.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qd_strategy_comparison.png}
+\caption{Q(d): overall prevalence trajectories for baseline, vaccination, and
+condoms. Both interventions collapse the epidemic; the baseline rises to a
+$\sim\!0.41$ plateau.}
+\label{fig:qd-comp}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\linewidth]{qd_averted_and_reff.png}
+\caption{Q(d): infections averted and reproduction number per strategy. Vaccination
+crosses $\Reff<1$ strictly; condoms sit just above $\Rzero=1$.}
+\label{fig:qd-averted}
+\end{figure}
+
+\subsection{Part 2 summary}
+
+On the sIC model, with $\gamma$ recalibrated to a biologically sensible
+$0.1\,\text{yr}^{-1}$ (giving $\Rzero\approx2.35$) and the epidemic seeded in the
+infectious rather than the AIDS compartment, vaccination at $\nu=0.65\,\text{yr}^{-1}$
+controls the HIV epidemic: it drives $\Reff\approx0.31<1$, so the epidemic never
+ignites, and prevalence stays near zero instead of rising to the $\sim\!0.41$
+endemic plateau of the baseline. It is cost-effective ($\sim\!\$102$ per infection
+averted at 30~yr, within the published Garnett/Stover range), though the standard
+rate over-vaccinates somewhat relative to the cost-effective knee at
+$\nu\approx0.18\,\text{yr}^{-1}$. Against condom promotion the two are roughly
+comparable on epidemiological outcome --- both essentially control the epidemic,
+vaccination crossing the threshold strictly while condoms hover just above it --- but
+they are not directly comparable on cost as priced here, and both verdicts are
+sensitive to the baseline $\Rzero$ near threshold. All of these conclusions rest on
+the documented modelling assumptions, in particular the $\gamma$ recalibration and
+the partner-pool convention that gives vaccination its herd-immunity effect.

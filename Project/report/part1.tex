@@ -1,0 +1,526 @@
+\section{Part 1 --- Hormonal Control of Glucose}
+
+This part implements the Cobelli \emph{et~al.}\ (1982) intermediate-complexity model of
+glucose--insulin--glucagon regulation, as presented in Haefner Ch.~12, and works through
+exercises 1--7 of \S12.5. The core is written in Python; integration uses
+\texttt{scipy.integrate.solve\_ivp} (LSODA), with a Radau cross-check. All exercises run against a
+single verified core (\texttt{cobelli.py}). Before the exercises I describe the model and the one
+non-trivial step needed to make it run at all: a small, documented calibration of an under-specified
+parameter table.
+
+\subsection{The Cobelli intermediate-complexity model}
+
+The model tracks seven state variables in three coupled subsystems, structured as a Forrester
+negative-feedback diagram (Fig.~12.2 of the text):
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \textbf{Glucose subsystem:} $g$ = glucose in plasma and extracellular fluid (mg).
+\item \textbf{Glucagon subsystem:} $c$ = glucagon in plasma and interstitial fluid (nU).
+\item \textbf{Insulin subsystem (five compartments):} $s$ = stored pancreatic insulin, $r$ =
+promptly releasable pancreatic insulin, $l$ = liver insulin, $p$ = plasma insulin, $i$ =
+interstitial-fluid insulin (all \si{\micro U}).
+\end{itemize}
+
+Each state variable has an associated concentration $\bar{g}=g/V_b$, $\bar{p}=p/V_p$, and so on,
+where the volumes $V_b,V_p,V_l,V_i$ are fixed fractions of body weight. Feedback is expressed through
+fluxes built from the hyperbolic tangent: a stimulatory effect uses
+$0.5\,[1+\tanh(b(\Delta\bar{x}+c))]$ and an inhibitory effect uses $0.5\,[1-\tanh(b(\Delta\bar{x}+c))]$,
+where $\Delta\bar{x}$ is the deviation of a concentration from its basal value, $b$ sets the slope and
+$c$ the centre. Because $\tanh$ has range $\pm1$, each gate is bounded in $[0,1]$ and saturates
+smoothly; multiplying several gates implements ``multiple limiting factors''. The governing equations
+(Eqs.~12.1--12.7) are
+
+\begin{align}
+\dd{g}{t} &= \mathrm{NHGB} - F_3 - F_4 - F_5 + I_g(t), \\
+\dd{c}{t} &= -h_{02}\,c + F_7, \\
+\dd{i}{t} &= -m_{13}\,i + m_{31}\,p, \\
+\dd{l}{t} &= -(m_{02}+m_{12})\,l + m_{21}\,p + F_6, \\
+\dd{p}{t} &= -(m_{01}+m_{21}+m_{31})\,p + m_{12}\,l + m_{13}\,i + I_p(t), \\
+\dd{r}{t} &= k_{21}\,s - k_{12}\,r - F_6, \\
+\dd{s}{t} &= -k_{21}\,s + k_{12}\,r + W,
+\end{align}
+
+where $\mathrm{NHGB}=F_1-F_2$ is the net hepatic glucose balance (liver production minus uptake),
+$F_3$ is renal excretion, $F_4$ peripheral (muscle/adipose) use, $F_5$ the nearly
+insulin-independent CNS/red-blood-cell sink, $F_6$ pancreatic insulin secretion, $F_7$ glucagon
+secretion, $W$ insulin synthesis into the stored pool, and $I_g,I_p$ are the glucose/insulin input
+functions used to drive diagnostic tests. The secretion flux
+$F_6=0.5\,a_6[1+\tanh(b_6(\Delta\bar{g}+c_6))]\,r$ is proportional to the releasable pool $r$, which
+matters for the ``hump'' in Exercise~2.
+
+\textbf{Transcription fix.} The renal-excretion gate is printed in the book as
+$M_{31}=0.5[1+\tanh(b_{13}(\bar{g}+c_{13}))]$, but $b_{13}=2.75\times10^{-2}$, $c_{13}=20$ are glucose
+self-suppression constants for $M_1$. Table~12.2 instead lists $b_{31}=20$, $c_{31}=-180$, which set a
+renal threshold near $180\mgdl$ --- the physiologically correct reading. We therefore use
+$b_{31},c_{31}$ (so $F_3$ stays near zero until glucose exceeds the threshold), treating the printed
+$b_{13}$ as a typo.
+
+\subsection{Calibration: reproducing Fig.~12.4 from an under-specified table}
+\label{sec:calibration}
+
+Taken literally and in the amount-based form of Eqs.~12.1--12.7, the Table~12.2 parameters do
+\emph{not} reproduce Figs.~12.4a/b. This was verified independently and is a genuine gap in the
+printed table, not a units error on our side (an amount$\leftrightarrow$concentration $V_b\approx140$
+factor closes less than 1\% of it). Quantitatively, for a 70\,kg subject:
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item The literal basal glucose clearance is $F_3+F_4+F_5\approx8.4\times10^{-4}\,$mg/min against a
+basal glucose amount of $12{,}810$\,mg, giving a clearance timescale of $\sim1.5\times10^{7}$\,min.
+Glucose essentially never clears (Fig.~12.4 shows recovery in $\sim$90\,min).
+\item The basal plasma insulin amount is $34{,}650\,\si{\micro U}$, which needs a basal secretion of
+$F_6\approx1.6\times10^{4}\,\si{\micro U}$/min, but the literal synthesis flux is
+$W(\text{basal})\approx0.017\,\si{\micro U}$/min --- about $10^{6}$ times too small. The insulin and
+glucagon axes collapse to zero and no IVGTT response is possible.
+\end{itemize}
+
+The model is explicitly described as ``semi-phenomenological\,\dots\ tailored/scaled to a particular
+patient'' (Haefner \S12.3). Sitting the model at a patient's basal operating point by choosing the
+under-determined source/clearance scales is exactly its intended use, so we applied a minimal,
+structure-preserving calibration and changed \emph{no} feedback shape:
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt]
+\item A uniform \texttt{glucose\_flux\_scale} (default $10^{5}$) multiplies the four glucose fluxes
+(NHGB, $F_3$, $F_4$, $F_5$), setting the clearance timescale to $\sim$90\,min. Because
+$\mathrm{NHGB}=F_3+F_4+F_5$ at basal, a \emph{common} scale cancels, so the basal steady state and
+every $\tanh$ feedback shape are exactly unchanged (the basal residual stays at $3.6\times10^{-12}$
+for scale $\in\{1,10^{3},10^{5},10^{7}\}$; setting it to $1.0$ recovers the literal table).
+\item The source scales $a_w$ (insulin synthesis) and $a_{71}$ (glucagon secretion) are chosen so the
+published clinical basal is an exact steady state. No $\tanh$ slope $b$, centre $c$, or transfer rate
+($m_{ij}$, $k_{ij}$) is altered.
+\item $b_{52}$, a constant offset in the $F_5$ CNS/RBC sink, is shifted by the tiny published
+NHGB$-(F_3+F_4+F_5)$ imbalance so that $\dd{g}{t}=0$ at basal exactly. This is a constant offset,
+not a shape change.
+\end{enumerate}
+
+After calibration the basal residual is $3.6\times10^{-12}$; a normal IVGTT gives a glucose peak of
+$250\mgdl$ recovering in $\sim$52\,min, plasma insulin rising $11\to40\uU$ then decaying, and glucagon
+dipping then recovering, with LSODA and Radau agreeing to $1.6\times10^{-4}$. These match Fig.~12.4
+qualitatively (Fig.~\ref{fig:verify}).
+
+\textbf{What is not claimed.} We do not claim that $10^{5}$, or the recalibrated $a_w,a_{71},b_{52}$,
+are the original Cobelli (1982) coefficients. They are a documented fit that reproduces the published
+figures from an under-specified table while leaving all feedback structure intact.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.8\linewidth]{verify_normal_ivgtt.png}
+\caption{Verification of the calibrated core against a normal IVGTT. Plasma glucose peaks near
+$250\mgdl$ and recovers within $\sim$52\,min; plasma insulin rises and decays; LSODA and Radau agree
+to $1.6\times10^{-4}$. The calibration preserves the basal steady state and all $\tanh$ feedback
+shapes.}
+\label{fig:verify}
+\end{figure}
+
+\subsection{Exercise 1: Normal IVGTT and where glucose goes}
+
+\textbf{Question.} Code the model, reproduce Figs.~12.4a/b (plasma glucose; plasma/liver/interstitial
+insulin), additionally plot glucagon and the liver uptake $F_2$, and answer: where does the majority
+of glucose go?
+
+\textbf{Approach.} A normal 70\,kg subject receives a single IV glucose bolus of $0.33\,$g/kg
+($=23.1$\,g) over 2\,min, integrated from the calibrated basal state for 150\,min. The glucose-disposal
+fluxes are integrated over the window to apportion the load.
+
+Plasma glucose rises from basal $91.5$ to a peak of $250\mgdl$ at $t=2$\,min, recovering within 5\% of
+basal by $t=52$\,min. Plasma insulin rises from $11$ to a peak of $40\uU$ within minutes, and glucagon
+is suppressed from $75$ down to $6$\,nU/ml by the combined glucose and insulin rise
+(Figs.~\ref{fig:ex1_glucose}--\ref{fig:ex1_glucagon}). The cumulative disposal split is given in
+Table~\ref{tab:ex1_split}.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex1_glucose.png}
+\caption{Plasma glucose (Fig.~12.4a).}
+\end{subfigure}\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex1_insulin.png}
+\caption{Plasma / liver / interstitial insulin (Fig.~12.4b).}
+\end{subfigure}
+\caption{Normal IVGTT ($23.1$\,g over 2\,min). Glucose peaks at $250\mgdl$ then recovers; all three
+insulin compartments rise within minutes of the bolus.}
+\label{fig:ex1_glucose}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{Cumulative glucose disposal over the 150-min IVGTT response. Peripheral disposal
+$F_3+F_4+F_5=40{,}170$\,mg.}
+\label{tab:ex1_split}
+\begin{tabular}{lrr}
+\toprule
+Sink & Cumulative (mg) & \% of peripheral disposal \\
+\midrule
+$F_5$ CNS / RBC & $24{,}503$ & $61.0$ \\
+$F_4$ muscle / adipose & $11{,}202$ & $27.9$ \\
+$F_3$ renal & $4{,}465$ & $11.1$ \\
+\midrule
+$\int\mathrm{NHGB}$ (signed) & $16{,}855$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Discussion.} The majority of disposed glucose goes to the CNS and red blood cells ($F_5$,
+$61.0\%$), followed by insulin-sensitive muscle and adipose tissue ($F_4$, $27.9\%$); renal excretion
+($F_3$) contributes $11.1\%$. This is physiologically sensible: $F_5$ is a large, nearly
+insulin-independent sink, while $F_3$ stays near zero until $\bar{g}$ exceeds the $\sim$180\,mg/100\,ml
+renal threshold --- here the peak is $250\mgdl$, so $F_3$ is engaged only modestly. In Forrester terms,
+the bolus drives glucose up, which opens $F_6$ ($\propto r$) so insulin climbs, which both clears
+glucose peripherally and (via inhibitory $-\tanh$ gates) suppresses glucagon. The sign of
+$\int\mathrm{NHGB}$ ($+16{,}855$\,mg) indicates the liver is a net source over the full window, as the
+basal hepatic output dominates once glucose has cleared.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex1_glucagon_F2.png}
+\caption{Glucagon and liver uptake $F_2$.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex1_disposal_split.png}
+\caption{Cumulative disposal fluxes.}
+\end{subfigure}
+\caption{Glucagon is suppressed during the excursion; the cumulative-flux panel shows CNS/RBC ($F_5$)
+as the dominant sink.}
+\label{fig:ex1_glucagon}
+\end{figure}
+
+\subsection{Exercise 2: The insulin ``hump''}
+
+\textbf{Question.} Why does the ``hump'' in insulin concentration develop in Fig.~12.5 (repeated
+glucose pulses, normal subject), and why is there a similar hump for obese persons in Fig.~12.7?
+
+\textbf{Approach.} (i) A normal subject is given an escalating repeated-pulse train
+($[0.5,1.0,2.5,5.0,10.0,20.0,40.0]$\,g at $t=[0,30,70,110,180,270,400]$\,min) over 700\,min. (ii) An
+obese subject is given a single $23.1$\,g IVGTT from its pre-equilibrated basal.
+
+In the normal repeated-pulse run a hump is detected: insulin re-rises to $\sim$37\uU\ near $t=450$\,min
+after dipping to $\sim$31\uU\ (Fig.~\ref{fig:ex2}). In the obese single-IVGTT run a hump is likewise
+detected, with a secondary insulin rise to $\sim$32\uU\ near $t=105$\,min (dip $\sim$22\uU; peak
+$36\uU$ vs basal $11\uU$).
+
+\textbf{Mechanism.} Both humps share one origin: secretion
+$F_6=0.5\,a_6[1+\tanh(b_6(\Delta\bar{g}+c_6))]\,r$ is proportional to the releasable pool $r$, which
+refills from the stored pool $s$ on its own slow timescale ($\dd{r}{t}=k_{21}s-k_{12}r-F_6$;
+$\dd{s}{t}=-k_{21}s+k_{12}r+W$). You cannot secrete insulin you do not have, and $r$ cannot refill
+instantly. In Fig.~12.5 each pulse drains $r$; because pulses are spaced shorter than the
+refill/clearance time, $r$ is repeatedly depleted and over-refilled from $s$, and the multi-compartment
+lag ($r\to l\to p\to i$) stacks the delayed contributions, so plasma insulin does not decay
+exponentially between pulses but accumulates into a delayed hump after the larger pulses. In the obese
+case (Fig.~12.7) the same pool dynamics are driven by parameters rather than repeated input: $b_6=0.5$
+(vs nominal $9.23\times10^{-2}$) steepens the $F_6$ gate so a single load triggers an outsized
+drain-and-refill of $r$, and $m_{02}=0.13$ slows downstream clearance, so the pools overshoot and
+secretion re-engages as $r$ refills --- an abnormal hump on the insulin-decay curve even though the
+glucose response is near-normal.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex2_normal_hump.png}
+\caption{Normal, repeated pulses.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex2_obese_hump.png}
+\caption{Obese, single IVGTT.}
+\end{subfigure}
+\caption{The insulin hump in both cases. Panels show glucose, insulin, the $r/s$ pools and $F_6$: the
+depletion--refill cycling of $r$ drives the secondary insulin rise.}
+\label{fig:ex2}
+\end{figure}
+
+\subsection{Exercise 3: Repeated pulses, diabetic vs normal}
+
+\textbf{Question.} Apply the Fig.~12.5 pulse sequence to a diabetic subject and compare with a normal
+subject.
+
+\textbf{Approach.} The identical escalating train is applied to both over 800\,min using the single
+canonical core. The diabetic uses the Table~12.3 secretion/uptake-shape changes, with the
+insulin-driven hepatic ($F_2$) and peripheral ($H_4$) uptake gates frozen, and a calibration to its
+own elevated operating point.
+
+\begin{table}[H]
+\centering
+\caption{Repeated-pulse response, normal vs diabetic.}
+\label{tab:ex3}
+\begin{tabular}{lrr}
+\toprule
+Quantity & Normal & Diabetic \\
+\midrule
+Basal glucose ($\mgdl$) & $91.5$ & $140.0$ \\
+Peak glucose ($\mgdl$) & $366$ & $418$ \\
+Final glucose ($\mgdl$) & $89.9$ & $139.7$ \\
+Basal insulin ($\uU$) & $11.0$ & $7.0$ \\
+Peak insulin ($\uU$) & $62$ & $18.3$ \\
+Recovery after last pulse (min) & $462$ & $524$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Disclosed modeling choice.} Table~12.3 lists $F_2=0.037$, but in the textbook's native
+(un-scaled) units. Fed through our $\texttt{glucose\_flux\_scale}=10^{5}$, the literal value becomes a
+$\sim$3700\,mg/min hepatic ``vacuum'' ($\sim$70$\times$ the normal basal $F_2\approx52$\,mg/min) that
+clamps glucose flat --- physiologically backwards. The scale-consistent reading of ``$F_2/H_2$ replaced
+by a constant'' is that the diabetic liver can no longer \emph{ramp} uptake with insulin, so we freeze
+$F_2$ near the normal basal hepatic-uptake flux and freeze $H_4$ at the Table~12.3 value $0.0012$. The
+elevated basal does not emerge from freezing alone (the $M_1$ glucose self-suppression and $G_1$
+glucagon gates make $91.5\mgdl$ a strong attractor), so the diabetic is calibrated to its own operating
+point ($\mathrm{DIABETIC\_BASAL}=140/7/75$) using the same under-determined scales ($a_w,a_{71},b_{52}$)
+as the normal subject --- no feedback shape is changed. At the low liver-insulin diabetic state the
+\emph{unfrozen} hepatic-production gate $H_1$ naturally sits high ($\sim$0.66 vs $0.25$ normal):
+hepatic production is no longer insulin-suppressed, the textbook diabetic mechanism, emergent rather
+than forced.
+
+\textbf{Discussion.} The diabetic basal glucose ($140\mgdl$) is elevated and its basal insulin
+($7.0\uU$) blunted, both relative to normal ($91.5\mgdl$, $11.0\uU$). Its peak insulin ($18.3\uU$) is
+far below the normal $62\uU$ --- the blunted Table~12.3 secretion machinery cannot mount the same
+overshoot, so the characteristic insulin hump is suppressed. With impaired uptake and unsuppressed
+production, the diabetic clears each pulse more slowly and stacks glucose above its already-high basal.
+On a standard IVGTT this same configuration recovers in $\sim$100\,min vs $\sim$52\,min for normal
+($\sim$1.9$\times$), the model expression of the textbook's ``$\sim$2$\times$ slower recovery''
+(\S12.3.6).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{ex3_diabetic_vs_normal.png}
+\caption{Repeated-pulse plasma glucose and insulin, normal vs diabetic (overlay and side-by-side). The
+diabetic stays elevated above its higher basal with a blunted, hump-free insulin response.}
+\label{fig:ex3}
+\end{figure}
+
+\subsection{Exercise 4: Meal (60-min infusion) vs IVGTT pulse}
+
+\textbf{Question.} Deliver glucose not as an instantaneous IVGTT pulse but as a constant input spread
+over 60\,min (a meal): 25\,g to a 70\,kg subject. Compare with an IVGTT of the same total dose.
+
+\textbf{Approach.} A normal subject receives $25$\,g either as a constant infusion
+$I_g=416.7$\,mg/min over $[0,60]$\,min, or as a $\sim$2-min bolus ($I_g=12{,}500$\,mg/min). The only
+difference between runs is the temporal spread of the input. The 60-min rectangular infusion is a
+deliberate first-order stand-in for the smooth, delayed gastrointestinal rate of appearance $R_a(t)$ of
+a real meal (cf.\ Dalla Man \emph{et~al.}\ 2007); the full GI submodel is not required here.
+
+\begin{table}[H]
+\centering
+\caption{Meal (60-min infusion) versus IVGTT (2-min bolus), same 25\,g total. Basal glucose
+$91.5\mgdl$, insulin $11.0\uU$.}
+\label{tab:ex4}
+\begin{tabular}{lrr}
+\toprule
+Metric & Meal (60\,min) & IVGTT (2\,min) \\
+\midrule
+Peak plasma glucose ($\mgdl$) & $143.9$ & $263.4$ \\
+Time-to-peak glucose (min) & $59.9$ & $2.0$ \\
+Peak plasma insulin ($\uU$) & $30.5$ & $40.2$ \\
+Time-to-peak insulin (min) & $13.8$ & $4.2$ \\
+Glucose recovery (min) & $82.5$ & $53.9$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Discussion.} The IVGTT dumps all 25\,g into the glucose pool within 2\,min, faster than any
+clearance flux can respond, so glucose spikes to $263.4\mgdl$ almost immediately. The meal delivers the
+identical mass at only $417$\,mg/min --- slow enough that the clearance fluxes ($F_3,F_4,F_5$) and the
+suppression of hepatic production remove glucose as it arrives, giving a much lower, broader excursion
+peaking at $143.9\mgdl$ near the end of the infusion. The insulin response mirrors the drive: the
+gentler glucose rise opens the $W$ and $F_6$ secretion gates less strongly, so the meal insulin peak
+($30.5\uU$) is blunted relative to the sharp IVGTT spike ($40.2\uU$), and then settles to a lower
+sustained plateau as $r$ partially depletes and is refilled by synthesis $W$. This is why an oral meal
+stresses glucose homeostasis far less than an equal-dose IV bolus, and why tolerance tests use a rapid
+bolus to maximally probe the feedback system.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{ex4_meal_vs_ivgtt.png}
+\caption{Meal vs IVGTT: plasma glucose (overlay), plasma insulin (overlay), and the input rate
+$I_g(t)$. Same 25\,g total, very different temporal spread.}
+\label{fig:ex4}
+\end{figure}
+
+\subsection{Exercise 5: Hyperinsulinism and IV-glucose rescue}
+
+\textbf{Question.} (a) Simulate hyperinsulinism (first guess: increase $a_6$) and terminate the patient
+when plasma glucose falls below $20\mgdl$; report the fatal setting and time of death. (b) Resuscitate
+with IV glucose: how much is needed?
+
+\textbf{Approach (disclosed reformulation).} Simply raising $a_6$ does not kill the subject. At steady
+state the pancreatic mass balance forces $F_6=W$, and the $W$ gate closes as glucose falls, so
+endogenous insulin saturates ($\sim$40\uU) and glucose only dips to $\sim$78\mgdl\ before recovering.
+This homeostasis is correct --- a normal pancreas cannot kill you --- so clinical insulin shock requires
+an \emph{autonomous} source (insulinoma or overdose) that does not switch off when glucose drops. We
+model this faithfully as an autonomous insulinoma with output
+$I_{p,\mathrm{tumor}}=(M-1)\,F_{6,\mathrm{basal}}$ \si{\micro U}/min ($F_{6,\mathrm{basal}}=1.638\times10^{4}$
+\si{\micro U}/min), where multiplier $M=1$ is the healthy subject. The native pancreas (the $W=F_6$
+balance, all $\tanh$ shapes, all transfer rates) is unchanged; death is a terminal event on
+$\bar{g}-20$.
+
+\begin{table}[H]
+\centering
+\caption{Fatal-hyperinsulinism sweep. The first fatal multiplier is $4.5\times$; the demo scenario
+uses $8\times$.}
+\label{tab:ex5}
+\begin{tabular}{rrrcr}
+\toprule
+$a_6$ mult & $I_{p,\mathrm{tumor}}$ (\si{\micro U}/min) & min $\bar{g}$ ($\mgdl$) & died & $t_{\mathrm{death}}$ (min) \\
+\midrule
+$1.0$ & $0$ & $91.50$ & no & --- \\
+$3.0$ & $3.277\times10^{4}$ & $79.66$ & no & --- \\
+$4.0$ & $4.915\times10^{4}$ & $36.65$ & no & --- \\
+$4.5$ & $5.735\times10^{4}$ & $20.10$ & yes & $79.6$ \\
+$6.0$ & $8.192\times10^{4}$ & $20.22$ & yes & $49.6$ \\
+$8.0$ & $1.147\times10^{5}$ & $20.11$ & yes & $43.3$ \\
+$10.0$ & $1.475\times10^{5}$ & $20.24$ & yes & $38.9$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Results.} The lethal threshold is the $4.5\times$ multiplier; the demonstration scenario
+($8\times$) kills the subject at $t=43.3$\,min (Fig.~\ref{fig:ex5}). For the rescue, a continuous IV
+dextrose drip is given over a defined 240-min clinical window and the total dose found by bisection
+(keeping $\bar{g}\ge20$ throughout): the \textbf{minimum rescue dose is $69.11$\,g} of glucose over
+240\,min. Below this the nadir still crosses 20 and the patient dies; at or above it the glucose floor
+holds at 20 and the patient survives the window.
+
+\textbf{Limitation.} Because the modelled insulinoma is permanent, IV glucose is temporizing, not
+curative (clinically the tumour must be removed) --- exactly the textbook's ``short-term treatment =
+large IV glucose''. The minimum dose is therefore quoted for a defined window; a longer window needs
+proportionally more glucose. Quoting an unconditional ``grams to survive forever'' would be undefined
+for a permanent source.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex5_fatal_decline.png}
+\caption{Fatal decline ($8\times$).}
+\end{subfigure}\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex5_rescue.png}
+\caption{Un-rescued death vs rescued survival.}
+\end{subfigure}
+\caption{Hyperinsulinism. Left: glucose driven through the 70 and 20\,mg/100\,ml lines as insulin rises
+far above basal. Right: the $69.11$\,g/240\,min drip holds the glucose floor at 20.}
+\label{fig:ex5}
+\end{figure}
+
+\subsection{Exercise 6: Insulin bolus, normal vs obese}
+
+\textbf{Question.} Simulate rapid ingestion of insulin at $0.10$\,U/kg over 2\,min, observe the
+momentary hypoglycemia, and ask whether the subject dies; repeat for an obese subject.
+
+\textbf{Approach.} The dose is $0.10\,\text{U/kg}\times70\,\text{kg}=7\,\text{U}=7.0\times10^{6}$
+\si{\micro U}, delivered as a rectangular $I_p(t)$ pulse ($3.5\times10^{6}$ \si{\micro U}/min) into the
+plasma-insulin compartment over 2\,min. Each subject starts from its own pre-equilibrated basal; death
+is a terminal event at $\bar{g}<20\mgdl$.
+
+\begin{table}[H]
+\centering
+\caption{Insulin-bolus response. Both subjects reach the same insulin peak; only the glucose nadir
+differs.}
+\label{tab:ex6}
+\begin{tabular}{lrrrl}
+\toprule
+Subject & glucose nadir ($\mgdl$) & $t_{\mathrm{nadir}}$ (min) & insulin peak ($\uU$) & verdict \\
+\midrule
+Normal & $20.08$ & $21.3$ & $1541$ & DIES ($t=21.4$\,min) \\
+Obese & $59.83$ & $37.2$ & $1542$ & survives ($t_{\mathrm{rec}}=103.6$\,min) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Discussion.} Both subjects receive the identical 7\,U bolus and reach essentially the same
+plasma-insulin peak ($\sim$1541\uU), yet their glucose nadirs differ sharply ($20.1$ vs $59.8\mgdl$).
+The difference comes entirely from peripheral disposal ($F_4$): the obese subject freezes the
+interstitial-insulin gate $H_4$ at $0.0012$ (Table~12.3) and shifts the glucose gate ($b_{42},c_{42}$),
+so the same insulin flood removes far less glucose per minute. This is the model's representation of
+insulin resistance, and here it is \emph{protective}: the normal subject's fully insulin-responsive
+tissue drives glucose all the way through the $20\mgdl$ line and dies, while the resistant obese subject
+bottoms out in the hypoglycemic-but-survivable range and recovers as the bolus clears and
+counter-regulation restores glucose. The normal result sits right at the lethal boundary, but the
+terminal event fires consistently across solvers and step sizes, so the verdict is robust within the
+model.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{ex6_insulin_bolus_normal_vs_obese.png}
+\caption{Insulin bolus, normal vs obese. Identical insulin peaks, but the normal nadir touches
+$20\mgdl$ (death) while the insulin-resistant obese subject bottoms out at $\sim$60\mgdl\ and recovers.}
+\label{fig:ex6}
+\end{figure}
+
+\subsection{Exercise 7: A bowl of vanilla ice cream}
+
+\textbf{Question.} Simulate the glucose, insulin and glucagon dynamics for a normal, diabetic and obese
+subject each consuming an average bowl of vanilla ice cream.
+
+\textbf{Approach and assumption.} An average bowl is taken as $\sim$1 cup ($\sim$130\,g) of regular
+vanilla ice cream. USDA FoodData Central lists $\sim$23--24\,g carbohydrate per 100\,g (almost entirely
+sugar), giving $\sim$31\,g; we adopt \textbf{30\,g of digestible carbohydrate, treated as 100\%
+appearing as plasma glucose} (a conservative upper bound, since lactose and fat slow real absorption).
+The bowl is eaten over 40\,min, modelled as a constant infusion $I_g=750$\,mg/min on $[0,40]$\,min --- a
+first-order stand-in for the gastrointestinal $R_a(t)$. The normal subject starts from its clinical
+basal, the obese subject is settled to its (normal-anchored) basal, and the diabetic uses the same
+canonical configuration as Exercise~3 (its own elevated basal $140/7/75$).
+
+\begin{table}[H]
+\centering
+\caption{Ice-cream meal (30\,g over 40\,min): per-subject peaks and recovery. Recovery is the first
+return within 5\% of that subject's own basal.}
+\label{tab:ex7}
+\begin{tabular}{lrrrrrr}
+\toprule
+Subject & basal $g$ & peak $g$ & basal ins & peak ins & min glucagon & $g$ recovery (min) \\
+ & ($\mgdl$) & ($\mgdl$) & ($\uU$) & ($\uU$) & (nU/ml) & \\
+\midrule
+Normal & $91.5$ & $185.7$ & $11.0$ & $36.9$ & $2.2$ & $77.3$ \\
+Diabetic & $140.0$ & $252.8$ & $7.0$ & $9.4$ & $1.5$ & $126.4$ \\
+Obese & $91.5$ & $206.8$ & $11.0$ & $35.5$ & $1.2$ & $113.8$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Discussion.} A single identical meal produces three distinct responses. The \emph{normal}
+subject rises to $\sim$186\mgdl\ then clears back toward $91.5$ with a clean first-phase insulin spike
+($11\to37\uU$). The \emph{obese} subject reaches a slightly higher glucose peak ($\sim$207\mgdl) with a
+broadly similar excursion shape from the same $91.5$ basal --- ``nearly normal'' glucose, as the
+textbook states --- but reproduces the characteristic abnormal hump in the insulin-decay curve (a
+secondary rise after the first-phase peak, driven by the steep $F_6$ gate and faster $m_{02}$
+clearance). The \emph{diabetic} subject starts from an elevated fasting basal ($140\mgdl$), rises to the
+highest peak ($\sim$253\mgdl) and recovers most slowly ($\sim$126\,min vs $\sim$77\,min for normal),
+with honestly blunted insulin ($7.0\to9.4\uU$): impaired insulin-driven uptake ($F_2,H_4$ frozen low)
+plus unsuppressed hepatic production (high $H_1$) gives a higher, slower excursion. In all three
+subjects the meal-driven glucose and insulin rise suppresses glucagon (the $F_7$ gates are negatively
+driven by both), so glucagon plunges from $\sim$75 toward $\sim$1--2\,nU/ml during the meal and then
+recovers.
+
+\begin{figure}[H]
+\centering
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex7_icecream_glucose.png}
+\caption{Plasma glucose.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex7_icecream_insulin.png}
+\caption{Plasma insulin.}
+\end{subfigure}
+
+\vspace{4pt}
+\begin{subfigure}{0.48\linewidth}
+\includegraphics[width=\linewidth]{ex7_icecream_glucagon.png}
+\caption{Plasma glucagon.}
+\end{subfigure}
+\caption{Ice-cream meal, three subjects. Glucose: diabetic highest and slowest. Insulin: normal clean
+spike, obese abnormal hump, diabetic blunted. Glucagon: suppressed in all three during the meal.}
+\label{fig:ex7}
+\end{figure}
+
+\subsection{Part 1 summary}
+
+The Cobelli model reproduces the qualitative IVGTT behaviour of Fig.~12.4 once an under-specified
+parameter table is calibrated to a patient's basal operating point --- a step that turned out to be the
+main practical obstacle and is documented in full rather than hidden. With that single calibrated core,
+exercises 1--7 recover the expected physiology: CNS/RBC tissue takes most of an ingested glucose load,
+the insulin hump arises from finite-pool secretion ($F_6\propto r$), a spread-out meal stresses
+homeostasis far less than an equal-dose IV bolus, and diabetic, obese, hyperinsulinaemic and
+insulin-overdose subjects each show their characteristic signature. Two reformulations were needed and
+disclosed honestly: hyperinsulinism requires an autonomous (insulinoma) source because the intact
+pancreas is self-limiting, and the diabetic subject must be calibrated to its own elevated operating
+point because the normal basal is a strong attractor. None of these changes the model's feedback
+structure.
