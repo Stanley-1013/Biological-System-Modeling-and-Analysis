@@ -10,7 +10,7 @@ with GNU Octave cross-check scripts.
 ## The four required submissions
 | # | Required item | Where |
 |---|---------------|-------|
-| 1 | **Project report** (figures + tables) | [`report/main.pdf`](report/main.pdf) (LaTeX source `report/main.tex`, `part1.tex`, `part2.tex`) |
+| 1 | **Project report** (figures + tables) | [`report/BME5113_TermProject_Report.pdf`](report/BME5113_TermProject_Report.pdf) (LaTeX source `report/BME5113_TermProject_Report.tex`, `part1.tex`, `part2.tex`) |
 | 2 | **Simulation programs** | Part 1: [`part1_glucose/`](part1_glucose/) · Part 2: [`part2_hiv/`](part2_hiv/) · Octave cross-checks: [`octave_crosscheck/`](octave_crosscheck/) |
 | 3 | **Papers read** | [`references/`](references/) (see `references/README.md`) |
 | 4 | **Presentation (Part 2 talk)** | [`presentation/part2_HIV_vaccination.pptx`](presentation/part2_HIV_vaccination.pptx) |
@@ -26,7 +26,7 @@ cd part1_glucose && python3 verify_core.py && python3 ex1_ivgtt.py   # ... ex2..
 # Part 2 (HIV): core verification + each question
 cd part2_hiv && python3 verify_sic.py && python3 q_a_peak_decline.py # ... q_b, q_c, q_d
 # Report (PDF)
-cd report && latexmk -lualatex main.tex
+cd report && latexmk -lualatex BME5113_TermProject_Report.tex
 # Octave cross-checks (needs GNU Octave installed)
 cd octave_crosscheck && octave cobelli_ivgtt.m && octave sic_baseline_vaccine.m
 ```

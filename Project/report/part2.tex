@@ -185,11 +185,21 @@ same decades-long ballpark as the textbook's $\sim\!20$~yr.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\linewidth]{verify_baseline_prevalence.png}
-\caption{Baseline sIC validation ($\nu=0$). HIV persists endemically and female
-prevalence exceeds male prevalence, reproducing the qualitative behaviour of
-Fig.~15.5a; equilibrium prevalences are female $\approx0.77$, male $\approx0.61$.}
+\begin{subfigure}{0.49\linewidth}
+\includegraphics[width=\linewidth]{verify_baseline_prevalence.png}
+\caption{Baseline ($\nu=0$): endemic persistence, female prevalence above male.}
 \label{fig:verify-baseline}
+\end{subfigure}\hfill
+\begin{subfigure}{0.49\linewidth}
+\includegraphics[width=\linewidth]{verify_condom_prevalence.png}
+\caption{Condom scenario (both $\beta$ halved): prevalence collapses near threshold.}
+\label{fig:verify-condom}
+\end{subfigure}
+\caption{sIC validation against Fig.~15.5. (a) Baseline reproduces endemic HIV with
+female prevalence exceeding male (female $\approx0.77$, male $\approx0.61$).
+(b) Halving both $\beta$ drops $\Rzero$ to $\approx1.17$, just above threshold; the
+direction matches Fig.~15.5b but the magnitude is larger because the system sits in
+the sensitive near-threshold regime (see text).}
 \end{figure}
 
 The condom scenario (Fig.~15.5b) is modelled, as in the textbook, by halving both
@@ -207,16 +217,6 @@ the endemic level a great deal. The textbook's larger residual prevalence is
 consistent with its (implicitly) higher underlying $\Rzero$. I flag this divergence
 rather than tune it away; it is the same near-threshold sensitivity that recurs in
 Q(d).
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.78\linewidth]{verify_condom_prevalence.png}
-\caption{Condom scenario (both $\beta$ halved). Prevalence collapses because
-$\Rzero$ drops to $\approx1.17$, just above threshold. The direction matches
-Fig.~15.5b; the magnitude is larger because the halved-$\beta$ system sits in the
-sensitive near-threshold regime (see text).}
-\label{fig:verify-condom}
-\end{figure}
 
 \subsection{The vaccination extension}
 
@@ -324,28 +324,27 @@ Protected fraction $P/(S+P)$ & --- & $\to 0.85$ \\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\linewidth]{qa_incidence.png}
-\caption{Q(a): incidence (new infections/yr), vaccine versus baseline. The baseline
-peaks at $\sim\!791$/yr near year~48; under vaccination ($\Reff\approx0.31$)
-incidence declines monotonically from the seed and never takes off.}
+\begin{subfigure}{0.32\linewidth}
+\includegraphics[width=\linewidth]{qa_incidence.png}
+\caption{Incidence (new/yr).}
 \label{fig:qa-incidence}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.78\linewidth]{qa_prevalence.png}
-\caption{Q(a): overall prevalence, vaccine versus baseline. The baseline rises to a
-$\sim\!0.41$ endemic plateau; the vaccinated run shows only a tiny early bump before
-declining to near zero.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.32\linewidth}
+\includegraphics[width=\linewidth]{qa_prevalence.png}
+\caption{Overall prevalence.}
 \label{fig:qa-prevalence}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.78\linewidth]{qa_protected_fraction.png}
-\caption{Q(a): protected fraction of the eligible age-2 pool, saturating near the
-analytic waning ceiling $\nu/(\nu+l)=0.867$.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.32\linewidth}
+\includegraphics[width=\linewidth]{qa_protected_fraction.png}
+\caption{Protected fraction.}
 \label{fig:qa-protected}
+\end{subfigure}
+\caption{Q(a): vaccine versus baseline. (a) Baseline incidence peaks at $\sim\!791$/yr
+near year~48; under vaccination ($\Reff\approx0.31$) it declines monotonically from
+the seed and never takes off. (b) Baseline prevalence rises to a $\sim\!0.41$ endemic
+plateau while the vaccinated run shows only a tiny early bump before declining to near
+zero. (c) The protected fraction saturates near the analytic waning ceiling
+$\nu/(\nu+l)=0.867$.}
 \end{figure}
 
 \subsection{Q(b): Cost of vaccination}
@@ -392,7 +391,7 @@ transferable metric is the cost \emph{per infection averted}, not the headline c
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\linewidth]{qb_cost.png}
+\includegraphics[width=0.66\linewidth]{qb_cost.png}
 \caption{Q(b): (top) cumulative cost and vaccinations versus time, with horizon
 markers at 20/30/50~yr; (bottom) cumulative infections for baseline versus vaccine
 and the infections-averted band.}
@@ -457,7 +456,7 @@ result is genuine, not an accident of the denominator choice.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.80\linewidth]{qc_invasion_threshold.png}
+\includegraphics[width=0.64\linewidth]{qc_invasion_threshold.png}
 \caption{Q(c): invasion growth rate $r(\nu)$ crossing zero ($\Reff=1$) under the
 corrected convention ($P$ in pool, finite $\nu_c\approx0.366$); the wrong
 $P$-excluded convention (no crossing) is shown for contrast. Theory $\nu_c$,
@@ -467,18 +466,19 @@ simulated $\nu_c$, and $\nu=0.65$ are marked.}
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\linewidth]{qc_prevalence_vs_nu.png}
-\caption{Q(c): peak epidemic size versus $\nu$. Above the threshold the epidemic is
-suppressed.}
+\begin{subfigure}{0.49\linewidth}
+\includegraphics[width=\linewidth]{qc_prevalence_vs_nu.png}
+\caption{Peak epidemic size versus $\nu$.}
 \label{fig:qc-prev}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.78\linewidth]{qc_cost_effectiveness.png}
-\caption{Q(c): average and marginal (incremental) cost per infection averted versus
-$\nu$, with the diminishing-returns knee at $\nu\approx0.175$ marked.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.49\linewidth}
+\includegraphics[width=\linewidth]{qc_cost_effectiveness.png}
+\caption{Average and marginal cost per infection averted.}
 \label{fig:qc-ce}
+\end{subfigure}
+\caption{Q(c): (a) peak epidemic size versus $\nu$ --- above the threshold the
+epidemic is suppressed; (b) average and marginal (incremental) cost per infection
+averted versus $\nu$, with the diminishing-returns knee at $\nu\approx0.175$ marked.}
 \end{figure}
 
 \subsection{Q(d): Vaccination versus condoms}
@@ -533,19 +533,20 @@ the two not directly comparable on cost as priced here.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.78\linewidth]{qd_strategy_comparison.png}
-\caption{Q(d): overall prevalence trajectories for baseline, vaccination, and
-condoms. Both interventions collapse the epidemic; the baseline rises to a
-$\sim\!0.41$ plateau.}
+\begin{subfigure}{0.49\linewidth}
+\includegraphics[width=\linewidth]{qd_strategy_comparison.png}
+\caption{Prevalence trajectories.}
 \label{fig:qd-comp}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.78\linewidth]{qd_averted_and_reff.png}
-\caption{Q(d): infections averted and reproduction number per strategy. Vaccination
-crosses $\Reff<1$ strictly; condoms sit just above $\Rzero=1$.}
+\end{subfigure}\hfill
+\begin{subfigure}{0.49\linewidth}
+\includegraphics[width=\linewidth]{qd_averted_and_reff.png}
+\caption{Infections averted and $\Reff$.}
 \label{fig:qd-averted}
+\end{subfigure}
+\caption{Q(d): (a) overall prevalence trajectories for baseline, vaccination, and
+condoms --- both interventions collapse the epidemic while the baseline rises to a
+$\sim\!0.41$ plateau; (b) infections averted and reproduction number per strategy ---
+vaccination crosses $\Reff<1$ strictly, condoms sit just above $\Rzero=1$.}
 \end{figure}
 
 \subsection{Part 2 summary}

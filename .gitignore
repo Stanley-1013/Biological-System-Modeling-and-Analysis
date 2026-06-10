@@ -19,3 +19,6 @@ venv/
 *.fls
 *.fdb_latexmk
 *.synctex.gz
+
+# derived submission bundle
+*.zip

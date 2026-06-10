@@ -101,9 +101,9 @@ qualitatively (Fig.~\ref{fig:verify}).
 are the original Cobelli (1982) coefficients. They are a documented fit that reproduces the published
 figures from an under-specified table while leaving all feedback structure intact.
 
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.8\linewidth]{verify_normal_ivgtt.png}
+\includegraphics[width=0.62\linewidth]{verify_normal_ivgtt.png}
 \caption{Verification of the calibrated core against a normal IVGTT. Plasma glucose peaks near
 $250\mgdl$ and recovers within $\sim$52\,min; plasma insulin rises and decays; LSODA and Radau agree
 to $1.6\times10^{-4}$. The calibration preserves the basal steady state and all $\tanh$ feedback
@@ -279,9 +279,9 @@ On a standard IVGTT this same configuration recovers in $\sim$100\,min vs $\sim$
 ($\sim$1.9$\times$), the model expression of the textbook's ``$\sim$2$\times$ slower recovery''
 (\S12.3.6).
 
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{ex3_diabetic_vs_normal.png}
+\includegraphics[width=0.66\linewidth]{ex3_diabetic_vs_normal.png}
 \caption{Repeated-pulse plasma glucose and insulin, normal vs diabetic (overlay and side-by-side). The
 diabetic stays elevated above its higher basal with a blunted, hump-free insulin response.}
 \label{fig:ex3}
@@ -327,9 +327,9 @@ sustained plateau as $r$ partially depletes and is refilled by synthesis $W$. Th
 stresses glucose homeostasis far less than an equal-dose IV bolus, and why tolerance tests use a rapid
 bolus to maximally probe the feedback system.
 
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{ex4_meal_vs_ivgtt.png}
+\includegraphics[width=0.66\linewidth]{ex4_meal_vs_ivgtt.png}
 \caption{Meal vs IVGTT: plasma glucose (overlay), plasma insulin (overlay), and the input rate
 $I_g(t)$. Same 25\,g total, very different temporal spread.}
 \label{fig:ex4}
@@ -437,9 +437,9 @@ counter-regulation restores glucose. The normal result sits right at the lethal 
 terminal event fires consistently across solvers and step sizes, so the verdict is robust within the
 model.
 
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\includegraphics[width=0.85\linewidth]{ex6_insulin_bolus_normal_vs_obese.png}
+\includegraphics[width=0.66\linewidth]{ex6_insulin_bolus_normal_vs_obese.png}
 \caption{Insulin bolus, normal vs obese. Identical insulin peaks, but the normal nadir touches
 $20\mgdl$ (death) while the insulin-resistant obese subject bottoms out at $\sim$60\mgdl\ and recovers.}
 \label{fig:ex6}
@@ -490,19 +490,17 @@ subjects the meal-driven glucose and insulin rise suppresses glucagon (the $F_7$
 driven by both), so glucagon plunges from $\sim$75 toward $\sim$1--2\,nU/ml during the meal and then
 recovers.
 
-\begin{figure}[H]
+\begin{figure}[t]
 \centering
-\begin{subfigure}{0.48\linewidth}
+\begin{subfigure}{0.32\linewidth}
 \includegraphics[width=\linewidth]{ex7_icecream_glucose.png}
 \caption{Plasma glucose.}
 \end{subfigure}\hfill
-\begin{subfigure}{0.48\linewidth}
+\begin{subfigure}{0.32\linewidth}
 \includegraphics[width=\linewidth]{ex7_icecream_insulin.png}
 \caption{Plasma insulin.}
-\end{subfigure}
-
-\vspace{4pt}
-\begin{subfigure}{0.48\linewidth}
+\end{subfigure}\hfill
+\begin{subfigure}{0.32\linewidth}
 \includegraphics[width=\linewidth]{ex7_icecream_glucagon.png}
 \caption{Plasma glucagon.}
 \end{subfigure}
