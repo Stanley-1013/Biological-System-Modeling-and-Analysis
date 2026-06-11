@@ -519,7 +519,7 @@ FIG_LEFT = MARGIN + TEXT_W + GUTTER
 
 def figure_slide(kicker, headline, key_label, key_msg, bullets_items,
                  fig_name, caption, *, head_size=30, key_size=15,
-                 bullet_size=14.5):
+                 bullet_size=14.5, formula=None):
     """Standard text|figure content slide with a vertically-centred block.
 
     The text column holds the key-message box then the bullets; the figure
@@ -546,6 +546,13 @@ def figure_slide(kicker, headline, key_label, key_msg, bullets_items,
     _key_message(s, MARGIN, group_top, TEXT_W, key_label, key_msg,
                  size=key_size, height=key_h)
     bullets_top = group_top + key_h + gap
+    # optional equation line (a faint-tinted bar with a centred formula)
+    if formula:
+        f_h = Inches(0.5)
+        _rect(s, MARGIN, bullets_top, TEXT_W, f_h, SIGNAL_FAINT)
+        _txt(s, MARGIN, bullets_top, TEXT_W, f_h, formula, 15.5, INK,
+             bold=True, align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+        bullets_top = bullets_top + f_h + Inches(0.16)
     bullets_avail = BLOCK_BOT - bullets_top
     _bullets(s, bullets_items, MARGIN, bullets_top, TEXT_W, bullets_avail,
              size=bullet_size, gap_after=6, line_spacing=1.14)
@@ -804,7 +811,8 @@ figure_slide(
     ],
     "verify_baseline_prevalence.png",
     "Baseline prevalence — growth to an endemic plateau",
-    key_size=15, bullet_size=14.5)
+    key_size=15, bullet_size=14.5,
+    formula="R₀ = c · √(β_mf · β_fm) / (μ + γ)")
 
 # =========================================================================== #
 # SLIDE 6 — VALIDATION  (fig verify_condom_prevalence)
