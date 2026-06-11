@@ -852,8 +852,8 @@ figure_slide(
           T(" of adults are ever protected.")], VACC),
         ([T("Cost tracked via "), B("dV/dt = ν(Sf2+Sm2)"), T(".")], VACC),
     ],
-    "qa_protected_fraction.png",
-    "Protected fraction → waning ceiling 0.87",
+    "sic_flow_diagram.png",
+    "S→I→A progression with the vaccine loop S⇄P",
     key_size=14.5, bullet_size=14)
 
 # =========================================================================== #
